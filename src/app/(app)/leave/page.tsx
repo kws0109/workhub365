@@ -1,4 +1,3 @@
-import Link from "next/link";
 import { and, desc, eq, gte, inArray, lte, ne, or } from "drizzle-orm";
 import { db } from "@/db";
 import { leaveRequests, users } from "@/db/schema";
@@ -6,7 +5,7 @@ import { requireSession } from "@/lib/auth-helpers";
 import { kstDateOf } from "@/lib/attendance";
 import { ensurePublicHolidays, getHolidaysBetween } from "@/lib/holidays";
 import { ActionForm } from "@/components/action-form";
-import { LeaveRequestForm } from "@/components/leave/request-form";
+import { LeaveCalendar } from "@/components/leave/leave-calendar";
 import {
   addCompanyHoliday,
   cancelLeave,
@@ -63,8 +62,6 @@ export default async function LeavePage({
     getHolidaysBetween(monthStart, monthEnd),
     getHolidaysBetween(`${thisYear}-01-01`, `${thisYear + 1}-12-31`),
   ]);
-  const holidayByDate = new Map(monthHolidays.map((h) => [h.date, h]));
-
   const myRequests = await db.query.leaveRequests.findMany({
     where: eq(leaveRequests.userId, session.user.id),
     orderBy: desc(leaveRequests.createdAt),
@@ -139,11 +136,32 @@ export default async function LeavePage({
     <div className="max-w-4xl">
       <h1 className="text-2xl font-bold tracking-tight">휴가</h1>
 
-      <div className="mt-6 grid grid-cols-1 gap-6 lg:grid-cols-2">
-        {/* 신청 폼 — 주말·공휴일 단일 휴가는 제출 전 차단 */}
+      {/* 팀 캘린더 — 날짜 클릭으로 신청 (모달) */}
+      <div className="mt-6">
+        <LeaveCalendar
+          ym={ym}
+          prevYm={prevYm}
+          nextYm={nextYm}
+          firstDow={firstDow}
+          daysInMonth={daysInMonth}
+          monthHolidays={monthHolidays.map((h) => ({ date: h.date, name: h.name }))}
+          entries={calendarRows}
+          holidayDates={formHolidays.map((h) => h.date)}
+          remainingDays={Number(me?.annualLeaveDays ?? 0)}
+          visibilityNote={
+            role === "employee"
+              ? `같은 부서(${me?.department ?? "미지정"})의 승인된 휴가만 표시`
+              : undefined
+          }
+          action={createLeave}
+        />
+      </div>
+
+      <div className="mt-6">
+        {/* 내 신청 */}
         <section className="rounded-xl border border-zinc-200 bg-white p-5">
           <div className="flex items-baseline justify-between">
-            <h2 className="font-semibold">휴가 신청</h2>
+            <h2 className="font-semibold">내 신청</h2>
             <p className="text-sm text-zinc-500">
               잔여 연차{" "}
               <span className="font-bold text-zinc-900">
@@ -151,18 +169,6 @@ export default async function LeavePage({
               </span>
             </p>
           </div>
-          <div className="mt-4">
-            <LeaveRequestForm
-              action={createLeave}
-              holidayDates={formHolidays.map((h) => h.date)}
-              remainingDays={Number(me?.annualLeaveDays ?? 0)}
-            />
-          </div>
-        </section>
-
-        {/* 내 신청 */}
-        <section className="rounded-xl border border-zinc-200 bg-white p-5">
-          <h2 className="font-semibold">내 신청</h2>
           <ul className="mt-3 space-y-2">
             {myRequests.length === 0 && (
               <li className="text-sm text-zinc-400">신청 내역이 없습니다</li>
@@ -272,71 +278,6 @@ export default async function LeavePage({
           </ul>
         </section>
       )}
-
-      {/* 팀 캘린더 */}
-      <section className="mt-6 rounded-xl border border-zinc-200 bg-white p-5">
-        <div className="flex items-center justify-between">
-          <h2 className="font-semibold">팀 캘린더</h2>
-          <div className="flex items-center gap-2 text-sm">
-            <Link href={`/leave?month=${prevYm}`} className="rounded px-2 py-1 hover:bg-zinc-100">
-              ←
-            </Link>
-            <span className="font-medium">{ym}</span>
-            <Link href={`/leave?month=${nextYm}`} className="rounded px-2 py-1 hover:bg-zinc-100">
-              →
-            </Link>
-          </div>
-        </div>
-        {role === "employee" && (
-          <p className="mt-1 text-xs text-zinc-400">
-            같은 부서({me?.department ?? "미지정"})의 승인된 휴가만 표시됩니다
-          </p>
-        )}
-        <div className="mt-3 grid grid-cols-7 gap-px overflow-hidden rounded-lg bg-zinc-200 text-xs">
-          {["일", "월", "화", "수", "목", "금", "토"].map((d) => (
-            <div key={d} className="bg-zinc-50 px-2 py-1 text-center font-medium text-zinc-500">
-              {d}
-            </div>
-          ))}
-          {Array.from({ length: firstDow }).map((_, i) => (
-            <div key={`pad-${i}`} className="min-h-16 bg-white" />
-          ))}
-          {Array.from({ length: daysInMonth }).map((_, i) => {
-            const date = `${ym}-${String(i + 1).padStart(2, "0")}`;
-            const holiday = holidayByDate.get(date);
-            const onLeave = calendarRows.filter(
-              (r) => r.startDate <= date && date <= r.endDate,
-            );
-            return (
-              <div
-                key={date}
-                className={`min-h-16 p-1 ${holiday ? "bg-red-50/60" : "bg-white"}`}
-              >
-                <p className={holiday ? "font-medium text-red-500" : "text-zinc-400"}>
-                  {i + 1}
-                </p>
-                {holiday && (
-                  <p className="mt-0.5 truncate rounded bg-red-100 px-1 text-red-600">
-                    {holiday.name}
-                  </p>
-                )}
-                {onLeave.slice(0, 3).map((r, j) => (
-                  <p
-                    key={j}
-                    className="mt-0.5 truncate rounded bg-emerald-50 px-1 text-emerald-700"
-                  >
-                    {r.userName}
-                    {r.type === "half" && " (반차)"}
-                  </p>
-                ))}
-                {onLeave.length > 3 && (
-                  <p className="mt-0.5 text-zinc-400">+{onLeave.length - 3}</p>
-                )}
-              </div>
-            );
-          })}
-        </div>
-      </section>
 
       {/* 휴일 관리 (admin) */}
       {role === "admin" && (
