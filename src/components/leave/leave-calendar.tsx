@@ -126,7 +126,7 @@ export function LeaveCalendar({
       {selectedDate && (
         <RequestModal
           key={selectedDate}
-          startDate={selectedDate}
+          initialDate={selectedDate}
           holidaySet={holidaySet}
           remainingDays={remainingDays}
           action={action}
@@ -138,13 +138,13 @@ export function LeaveCalendar({
 }
 
 function RequestModal({
-  startDate,
+  initialDate,
   holidaySet,
   remainingDays,
   action,
   onClose,
 }: {
-  startDate: string;
+  initialDate: string;
   holidaySet: Set<string>;
   remainingDays: number;
   action: (prev: ActionState, formData: FormData) => Promise<ActionState>;
@@ -152,7 +152,9 @@ function RequestModal({
 }) {
   const [state, formAction, pending] = useActionState(action, {});
   const [type, setType] = useState<LeaveType>("annual");
-  const [endDate, setEndDate] = useState(startDate);
+  // 클릭한 날짜가 기본 시작일 — 모달 안에서 수정 가능
+  const [startDate, setStartDate] = useState(initialDate);
+  const [endDate, setEndDate] = useState(initialDate);
 
   // 성공 시 모달을 닫는다 — revalidatePath가 캘린더를 갱신한다
   useEffect(() => {
@@ -173,7 +175,7 @@ function RequestModal({
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between">
-          <h3 className="font-semibold">휴가 신청 — {startDate}</h3>
+          <h3 className="font-semibold">휴가 신청</h3>
           <button
             type="button"
             onClick={onClose}
@@ -186,7 +188,6 @@ function RequestModal({
 
         <form action={formAction} className="mt-4">
           <fieldset disabled={pending} className="contents">
-            <input type="hidden" name="startDate" value={startDate} />
             <div className="space-y-3">
               <label className="block">
                 <span className="mb-1 block text-xs font-medium text-zinc-500">유형</span>
@@ -200,6 +201,24 @@ function RequestModal({
                   <option value="half">반차 (0.5일)</option>
                   <option value="sick">병가 (차감 없음)</option>
                 </select>
+              </label>
+              <label className="block">
+                <span className="mb-1 block text-xs font-medium text-zinc-500">
+                  시작일
+                </span>
+                <input
+                  type="date"
+                  name="startDate"
+                  required
+                  value={startDate}
+                  onChange={(e) => {
+                    const next = e.target.value;
+                    setStartDate(next);
+                    // 종료일이 시작일보다 앞서지 않도록 따라 올린다
+                    if (next && endDate < next) setEndDate(next);
+                  }}
+                  className="w-full rounded-lg border border-zinc-200 px-3 py-2 text-sm"
+                />
               </label>
               {type !== "half" && (
                 <label className="block">
