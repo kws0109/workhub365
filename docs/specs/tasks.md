@@ -9,11 +9,11 @@ Phase 단위로 브랜치 → PR. 완료 시 체크.
 - [x] .env.example / 테넌트·앱 등록 가이드(docs/setup-guide.md)
 
 ## Phase 1 — 기반
-- [ ] Auth.js + Entra ID SSO 로그인/로그아웃, 세션에 역할 포함
-- [ ] ADMIN_EMAILS 부트스트랩 + 역할 가드(미들웨어/헬퍼)
-- [ ] app-only Graph 클라이언트(client credentials, 429 재시도 래퍼)
-- [ ] Drizzle + Neon 연결, 스키마 정의 + 마이그레이션
-- [ ] 공통 레이아웃(사이드바 내비, 역할별 메뉴)
+- [x] Auth.js + Entra ID SSO 로그인/로그아웃, 세션에 역할 포함 (실테넌트 로그인 검증 완료)
+- [x] ADMIN_EMAILS 부트스트랩 + 역할 가드(레이아웃+페이지 헬퍼) — admin 검증 완료, 일반 직원 계정 차단 검증은 Phase 4에서 테스트 계정으로
+- [x] app-only Graph 클라이언트(client credentials, 429 재시도 래퍼) — 실호출 검증은 Phase 2에서
+- [x] Drizzle + Neon 연결, 스키마 정의 + db:push 반영
+- [x] 공통 레이아웃(사이드바 내비, 역할별 메뉴)
 
 ## Phase 2 — M1 라이선스 대시보드
 - [ ] subscribedSkus/users 수집 + 조인
