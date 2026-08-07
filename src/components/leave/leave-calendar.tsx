@@ -213,9 +213,12 @@ function RequestModal({
                   value={startDate}
                   onChange={(e) => {
                     const next = e.target.value;
+                    // 시작일이 종료일을 넘어가는 변경은 적용하지 않고 알린다
+                    if (type !== "half" && next && endDate && next > endDate) {
+                      window.alert("시작일은 종료일 이후로 설정할 수 없습니다");
+                      return;
+                    }
                     setStartDate(next);
-                    // 종료일이 시작일보다 앞서지 않도록 따라 올린다
-                    if (next && endDate < next) setEndDate(next);
                   }}
                   className="w-full rounded-lg border border-zinc-200 px-3 py-2 text-sm"
                 />
