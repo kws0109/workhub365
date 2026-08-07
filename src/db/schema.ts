@@ -114,6 +114,20 @@ export const approvalRequests = pgTable("approval_requests", {
   decidedAt: timestamp("decided_at", { withTimezone: true }),
 });
 
+export const holidaySourceEnum = pgEnum("holiday_source", ["public", "company"]);
+
+// 휴일: public = 공휴일 API 동기화, company = 관리자가 설정한 전사 휴일/임시 공휴일
+export const holidays = pgTable("holidays", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  date: date("date").notNull().unique(),
+  name: text("name").notNull(),
+  source: holidaySourceEnum("source").notNull().default("company"),
+  createdBy: uuid("created_by").references(() => users.id),
+  createdAt: timestamp("created_at", { withTimezone: true })
+    .notNull()
+    .defaultNow(),
+});
+
 // 라이선스 낭비 금액 환산용 단가표. skuId는 Graph subscribedSkus의 skuId(GUID)
 export const skuPrices = pgTable("sku_prices", {
   skuId: text("sku_id").primaryKey(),
