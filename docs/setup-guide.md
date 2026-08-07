@@ -2,11 +2,13 @@
 
 WorkHub365를 실제 M365 테넌트에 연결해 실행하기까지의 전체 과정입니다.
 
-## 1. M365 테넌트 준비 (E5 30일 평가판)
+## 1. M365 테넌트 준비 (E5 또는 E3 30일 평가판)
 
 이미 관리자 권한이 있는 테넌트가 있다면 이 단계는 건너뜁니다.
 
-1. 시크릿 창에서 [Microsoft 365 E5 평가판](https://www.microsoft.com/ko-kr/microsoft-365/enterprise/microsoft365-plans-and-pricing) 접속 → E5 "무료 평가판" 선택
+**플랜 선택**: **Microsoft 365 E5** 또는 **Microsoft 365 E3** 모두 가능합니다. 이 프로젝트가 유일하게 요구하는 프리미엄 기능은 `signInActivity`(마지막 로그인 조회, Entra ID P1 필요)인데 둘 다 P1을 포함합니다. 단, 이름이 비슷한 **Office 365 E3는 Entra P1이 없으므로 피할 것** (비활성 사용자 탐지가 "알 수 없음"으로 강등됨).
+
+1. 시크릿 창에서 [Microsoft 365 평가판](https://www.microsoft.com/ko-kr/microsoft-365/enterprise/microsoft365-plans-and-pricing) 접속 → E5(또는 E3) "무료 평가판" 선택
 2. **새 이메일로 가입** (기존 M365 계정과 연결되지 않은 주소) → 새 테넌트(`<이름>.onmicrosoft.com`)와 전역 관리자 계정이 생성됨
    - 최근에는 카드 등록을 요구할 수 있음(평가판 기간 내 취소하면 과금 없음)
 3. [admin.microsoft.com](https://admin.microsoft.com) 로그인 → 사용자 몇 명을 만들어 데모 데이터 구성 (부서·직급 다양하게 5~10명 권장, E5 라이선스 일부만 할당하면 "미할당 라이선스" 데모가 자연스러움)
