@@ -161,15 +161,28 @@ export async function graphFetch<T>(
   }
 }
 
-/** @odata.nextLink를 따라 전체 페이지를 수집 */
-export async function graphGetAll<T>(path: string): Promise<T[]> {
+/** @odata.nextLink를 따라 페이지를 수집. maxPages 도달 시 truncated=true */
+export async function graphGetAllPaged<T>(
+  path: string,
+  opts?: { maxPages?: number },
+): Promise<{ items: T[]; truncated: boolean }> {
+  const maxPages = opts?.maxPages ?? Infinity;
   const items: T[] = [];
   let next: string | undefined = path;
+  let pages = 0;
   while (next) {
+    if (pages >= maxPages) return { items, truncated: true };
     const page: { value: T[]; "@odata.nextLink"?: string } =
       await graphFetch(next);
     items.push(...page.value);
     next = page["@odata.nextLink"];
+    pages++;
   }
+  return { items, truncated: false };
+}
+
+/** @odata.nextLink를 따라 전체 페이지를 수집 */
+export async function graphGetAll<T>(path: string): Promise<T[]> {
+  const { items } = await graphGetAllPaged<T>(path);
   return items;
 }
