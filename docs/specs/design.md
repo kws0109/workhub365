@@ -19,14 +19,18 @@
 | 사용자 SSO | 직원 로그인, 역할 판별 | Auth.js(NextAuth) + Microsoft Entra ID provider (delegated, openid/profile/email/User.Read) | 앱 등록 #1 |
 | 관리 액션 | Graph 관리 호출 | client credentials(app-only), `.default` scope + admin consent | 앱 등록 #2 |
 
-- 역할(admin/manager/employee)은 DB `users.role`에 저장. 최초 로그인 시 employee로 생성, 승격은 admin이 수행(부트스트랩: `ADMIN_EMAILS` 환경변수에 나열된 계정은 로그인 시 admin)
-- 세션 전략: JWT (DB 세션 불필요)
+- 역할(admin/manager/employee)은 DB `users.role`에 저장. 최초 로그인 시 employee로 생성, 승격은 admin이 수행(부트스트랩: `ADMIN_EMAILS` 환경변수에 나열된 계정은 **매 로그인마다** 평가해 admin으로 승격 — 최초 가입 시에만 적용하면 데드락)
+- 세션 전략: JWT (DB 세션 불필요). jwt 콜백에서 매 요청 역할을 DB에서 갱신하며, **행이 삭제된 사용자는 토큰에서 신원을 제거해 fail-closed**
+- 계정 식별은 불변 클레임 **oid(entraId)** 기준 — 이메일은 변경·재활용 가능하므로 매칭 키로 쓰지 않는다(nOAuth 방지). 토큰의 `tid`를 코드에서 재검증해 테넌트를 고정하고, `AUTH_MICROSOFT_ENTRA_ID_ISSUER` 미설정 시 로그인을 거부(fail-closed — provider의 /common 폴백 방어)
 
 ## Graph 권한 (앱 등록 #2, application)
 
 User.ReadWrite.All, Organization.Read.All, Group.ReadWrite.All, Directory.Read.All, AuditLog.Read.All, Reports.Read.All (+ 스트레치: Calendars.ReadWrite)
 
 ## DB 스키마 (Drizzle, 초안)
+
+- 드라이버는 `drizzle-orm/neon-serverless`(WebSocket Pool) — neon-http는 `db.transaction()`이 런타임에서 실패한다. 휴가 승인(차감 1회)·승인 게이트(실행+감사로그)의 원자성에 트랜잭션 필수
+- `attendance_records`는 `(user_id, date)` 유니크 — 하루 1행 불변식을 DB에서 강제
 
 - `users` — id, entraId(oid), email, name, department, role(admin/manager/employee), managerId, annualLeaveDays(부여 연차), createdAt
 - `leave_requests` — id, userId, type(annual/half/sick), startDate, endDate, days(numeric), reason, status(pending/approved_1/approved/rejected/cancelled), approverId, rejectReason, createdAt, decidedAt
