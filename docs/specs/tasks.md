@@ -16,10 +16,10 @@ Phase 단위로 브랜치 → PR. 완료 시 체크.
 - [x] 공통 레이아웃(사이드바 내비, 역할별 메뉴)
 
 ## Phase 2 — M1 라이선스 대시보드
-- [ ] subscribedSkus/users 수집 + 조인
-- [ ] calcLicenseWaste 순수 함수 + 단위 테스트
-- [ ] 대시보드 UI(SKU 현황, 비활성×라이선스 매트릭스, 낭비 금액, 추천)
-- [ ] sku_prices 단가표 편집 화면
+- [x] subscribedSkus/users 수집 + 조인 (라이선스 보유자 $filter, 페이지 상한 50, signInActivity 강등 경로)
+- [x] calcLicenseWaste 순수 함수 + 단위 테스트 16개 (Suspended SKU 0원, warning 좌석 포함, 초과 할당 클램프 포함)
+- [x] 대시보드 UI(SKU 현황, 사용자 상태 매트릭스, 원화 낭비 금액, 절감 추천) — 실테넌트 검증 완료
+- [x] SKU 단가 인라인 편집(서버 측 SKU 대조 검증, 이전→이후 감사 로그)
 
 ## Phase 3 — M2 온보딩/오프보딩
 - [ ] 파이프라인 프레임(단계 정의/실행/재시도/감사 로그)

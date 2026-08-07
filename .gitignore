@@ -34,6 +34,9 @@ yarn-error.log*
 .env*
 !.env.example
 
+# 로컬 전용 시크릿/데모 자격 증명
+*.local.json
+
 # vercel
 .vercel
 
