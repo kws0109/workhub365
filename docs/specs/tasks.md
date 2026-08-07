@@ -5,8 +5,8 @@ Phase 단위로 브랜치 → PR. 완료 시 체크.
 ## Phase 0 — 셋업
 - [x] Next.js(TS, App Router, Tailwind) 스캐폴드
 - [x] CLAUDE.md / 스펙 문서(requirements, design, tasks)
-- [ ] GitHub 공개 리포 + Wiki 활성화
-- [ ] .env.example / 테넌트·앱 등록 가이드(docs/setup-guide.md)
+- [x] GitHub 공개 리포 + Wiki 활성화 (Home/Architecture/Development-Log/Setup-Guide/Roadmap)
+- [x] .env.example / 테넌트·앱 등록 가이드(docs/setup-guide.md)
 
 ## Phase 1 — 기반
 - [ ] Auth.js + Entra ID SSO 로그인/로그아웃, 세션에 역할 포함
