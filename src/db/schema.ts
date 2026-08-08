@@ -30,6 +30,9 @@ export const approvalStatusEnum = pgEnum("approval_status", [
   "rejected",
   "executed",
   "failed",
+  // 실행-정확히-1회 클레임 상태. 승인 시 pending→executing 조건부 UPDATE로
+  // 선점한 요청만 실행된다 (동시 승인 이중 실행 차단)
+  "executing",
 ]);
 
 export const users = pgTable("users", {
@@ -108,7 +111,12 @@ export const auditLogs = pgTable("audit_logs", {
 export const approvalRequests = pgTable("approval_requests", {
   id: uuid("id").primaryKey().defaultRandom(),
   kind: text("kind").notNull().default("assistant_action"),
+  toolName: text("tool_name").notNull().default(""),
+  // { input, summary } — 도구 입력의 jsonb 스냅샷. 실행은 이 스냅샷 기준
   payload: jsonb("payload").notNull(),
+  // Claude tool_use 블록 id. 스트림 재시도가 같은 도구 호출로 요청을
+  // 두 번 만들지 못하게 하는 멱등 키 (unique 위반 시 기존 행 재사용)
+  idempotencyKey: text("idempotency_key").unique(),
   status: approvalStatusEnum("status").notNull().default("pending"),
   requestedBy: uuid("requested_by").references(() => users.id),
   decidedBy: uuid("decided_by").references(() => users.id),
@@ -116,6 +124,12 @@ export const approvalRequests = pgTable("approval_requests", {
     .notNull()
     .defaultNow(),
   decidedAt: timestamp("decided_at", { withTimezone: true }),
+  // 승인 유효기한 — 지나면 클레임 조건에서 걸러져 뒤늦은 실행이 차단된다
+  expiresAt: timestamp("expires_at", { withTimezone: true }),
+  executedAt: timestamp("executed_at", { withTimezone: true }),
+  // 실행 결과 스냅샷(민감정보 제외 — 임시 비밀번호는 저장하지 않는다)
+  result: jsonb("result"),
+  error: text("error"),
 });
 
 export const proposalStatusEnum = pgEnum("proposal_status", [
