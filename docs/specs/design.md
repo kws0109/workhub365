@@ -65,6 +65,13 @@ User.ReadWrite.All, Organization.Read.All, Group.ReadWrite.All, Directory.Read.A
 - 변경형 흐름: tool 실행 요청 → `approval_requests`에 payload 저장 + `approval_required` 반환 → 채팅 UI에 승인 카드 → 승인 시 서버가 실제 실행 → 결과를 대화에 반영
 - 모델: `claude-sonnet-5` 기본(비용), 환경변수로 교체 가능
 
+### M6 기안(전자결재)
+- 템플릿(유형별 필드+기본 결재선 규칙)은 코드가 진실의 원천(`src/lib/proposal.ts`), 제출값은 jsonb 스냅샷 — **상세 화면은 스냅샷 기준으로 렌더링**하고 템플릿은 라벨/순서 메타데이터로만 사용 (템플릿 진화에도 기존 문서 보존)
+- 순차 결재: 조건부 전이(내 결재 행 대기 + 기안 동일 단계)로 동시 결재 이중 처리 차단. 회수는 `in_progress AND currentStep=1` 조건부 UPDATE — 동시 승인과의 TOCTOU 봉쇄
+- **열람 정책**: 작성자·결재선 구성원 + 관리자(감독·복구 목적). 결재·회수 권한은 관리자에게 없음
+- **회복 경로**: 결재자 퇴사 등으로 멈춘 기안은 관리자가 사유 필수 강제 반려 가능 (`proposal.force_reject` 감사 로그)
+- 백로그: 결재자 후보에서 비활성(오프보딩) 사용자 제외, 관리자 열람 감사 로그, 결재자 재지정
+
 ## 오류 처리 원칙
 
 - Graph 호출은 얇은 래퍼로 감싸 429(throttle) 재시도(Retry-After 존중), 403은 "권한 부족: {필요 scope}"로 변환
