@@ -1,6 +1,6 @@
 # Handoff — 세션 인수인계 (2026-08-09 기준)
 
-새 세션은 이 문서 + [CLAUDE.md](../CLAUDE.md) + [docs/specs/tasks.md](specs/tasks.md)를 읽고 이어서 작업한다.
+새 세션은 이 문서 + [CLAUDE.md](../CLAUDE.md) + [docs/specs/tasks.md](specs/tasks.md)를 읽고 이어서 작업한다. 각 작업의 근거 스펙과 실행 프롬프트는 [docs/prompt-log.md](prompt-log.md)에 기록한다 (새 작업도 같은 형식으로 기록할 것).
 
 ## 현재 상태
 
@@ -8,8 +8,10 @@
   - Phase 0~1: 스캐폴드, Entra SSO(2층 인증), Graph 클라이언트, DB 기반
   - M1 라이선스 대시보드 / M2 온보딩·오프보딩(NDJSON 스트리밍 파이프라인) / M3 휴가(캘린더 클릭→모달, 공휴일 자동수집, 팀 연차 탭) / M4 근태 / M6 기안(전자결재: 템플릿 4종, 자동 결재선, 순차 결재)
   - 다중 사용자 동시성 강화 (EXCLUDE 제약, 풀 하드닝, after() 등) + 성능 최적화 (쿼리 병렬화, Graph TTL 캐시, jwt 스로틀)
-- **남은 것**: Phase 5 (M5 AI 어시스턴트 + MCP 서버), Phase 6 (CI, README 정리, Vercel 배포, 데모)
+  - M7 포털 셸 1차 (2026-08-09): 사이드바 섹션 그룹핑+아이콘, 기안 미결 배지(승인 후 소멸까지 E2E 검증), M365 앱 딥링크 런처 — 스펙 R7.1~R7.3
+- **남은 것**: Phase 5 (M5 AI 어시스턴트 + MCP 서버), M7 후속(R7.4 홈 대시보드 위젯 그리드, 모바일 드로어), Phase 6 (CI, README 정리, Vercel 배포, 데모)
 - 검증 상태: Vitest 65개 통과, lint/build 클린
+- M7 설계 주의: 실시간 숫자는 홈 대시보드에만, 레이아웃 배지는 revalidate 스냅샷 (이유는 design.md M7 절) — M365 화면 iframe 임베드는 금지 결정
 
 ## Phase 5 착수 시 알아야 할 것
 
