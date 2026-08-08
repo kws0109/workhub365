@@ -9,20 +9,16 @@ export const metadata = { title: "팀 연차 현황" };
 // 거치므로 별도 컬럼 없이 도출해도 정확하다. 병가는 차감이 없어 제외
 export default async function TeamLeavePage() {
   const session = await requireSession();
-  const role = session.user.role;
 
   const me = await db.query.users.findFirst({
     where: eq(users.id, session.user.id),
   });
 
-  // 가시성: admin은 전사, 그 외에는 같은 부서만 (부서 미지정이면 본인만)
+  // 팀 연차는 역할 무관 같은 부서 구성원만 (부서 미지정이면 본인만)
   const members = await db.query.users.findMany({
-    where:
-      role === "admin"
-        ? undefined
-        : me?.department
-          ? eq(users.department, me.department)
-          : eq(users.id, session.user.id),
+    where: me?.department
+      ? eq(users.department, me.department)
+      : eq(users.id, session.user.id),
   });
 
   const memberIds = members.map((m) => m.id);
@@ -52,25 +48,18 @@ export default async function TeamLeavePage() {
       return {
         id: m.id,
         name: m.name,
-        department: m.department,
         isMe: m.id === session.user.id,
         used,
         remaining,
         total: remaining + used,
       };
     })
-    .sort(
-      (a, b) =>
-        (a.department ?? "").localeCompare(b.department ?? "", "ko") ||
-        a.name.localeCompare(b.name, "ko"),
-    );
+    .sort((a, b) => a.name.localeCompare(b.name, "ko"));
 
   return (
     <div>
       <p className="text-xs text-zinc-400">
-        {role === "admin"
-          ? "전사 구성원의 연차 현황입니다"
-          : `같은 부서(${me?.department ?? "미지정"}) 구성원의 연차 현황입니다`}
+        같은 부서({me?.department ?? "미지정"}) 구성원의 연차 현황입니다
         {" · "}총 연차 = 잔여 + 사용(승인된 연차·반차)
       </p>
       <div className="mt-3 overflow-x-auto rounded-xl border border-zinc-200 bg-white">
@@ -78,9 +67,6 @@ export default async function TeamLeavePage() {
           <thead>
             <tr className="border-b border-zinc-200 text-left text-xs text-zinc-500">
               <th className="px-4 py-2 font-medium">이름</th>
-              {role === "admin" && (
-                <th className="px-4 py-2 font-medium">부서</th>
-              )}
               <th className="px-4 py-2 text-right font-medium">사용</th>
               <th className="px-4 py-2 text-right font-medium">남은 연차</th>
               <th className="px-4 py-2 text-right font-medium">총 연차</th>
@@ -100,11 +86,6 @@ export default async function TeamLeavePage() {
                       </span>
                     )}
                   </td>
-                  {role === "admin" && (
-                    <td className="px-4 py-2 text-zinc-500">
-                      {r.department ?? "—"}
-                    </td>
-                  )}
                   <td className="px-4 py-2 text-right text-zinc-600">
                     {r.used}일
                   </td>
@@ -127,7 +108,7 @@ export default async function TeamLeavePage() {
             })}
             {rows.length === 0 && (
               <tr>
-                <td colSpan={role === "admin" ? 6 : 5} className="px-4 py-6 text-center text-zinc-400">
+                <td colSpan={5} className="px-4 py-6 text-center text-zinc-400">
                   표시할 구성원이 없습니다
                 </td>
               </tr>

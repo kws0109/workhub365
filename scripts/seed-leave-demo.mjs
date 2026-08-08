@@ -136,6 +136,9 @@ for (const u of graphUsers) {
 
 const [admin] = await sql`select id, name from users where role = 'admin' limit 1`;
 
+// admin도 팀 화면(같은 부서만 표시)을 볼 수 있도록 부서를 배정한다
+await sql`update users set department = '개발' where id = ${admin.id} and department is null`;
+
 // ── 3) 휴일 로드 + 일수 계산 (앱과 동일 규칙) ──────────────
 const holidayRows = await sql`select to_char(date, 'YYYY-MM-DD') as d from holidays`;
 const holidays = new Set(holidayRows.map((r) => r.d));
@@ -173,6 +176,10 @@ const LEAVES = [
   ["유시우", "annual", "2026-08-11", "2026-08-11", "cancelled"],
   ["윤지호", "annual", "2026-08-31", "2026-09-01", "approved"],
   ["서예린", "annual", "2026-08-18", "2026-08-19", "approved"],
+  // 8/19(수)에 5명 동시 휴가 — 다중 레인·오버플로 표시 확인용
+  ["이지은", "annual", "2026-08-18", "2026-08-20", "approved"],
+  ["윤지호", "annual", "2026-08-19", "2026-08-20", "approved"],
+  ["임태양", "annual", "2026-08-19", "2026-08-19", "approved"],
   ["정도윤", "half", "2026-08-26", "2026-08-26", "pending"],
   ["임태양", "annual", "2026-08-12", "2026-08-13", "approved"],
   ["임태양", "sick", "2026-09-02", "2026-09-03", "pending"],

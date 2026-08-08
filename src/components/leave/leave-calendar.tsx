@@ -17,7 +17,7 @@ type CalendarEntry = {
 
 type HolidayItem = { date: string; name: string };
 
-const MAX_LANES = 3;
+const MAX_LANES = 4;
 
 /**
  * 기간이 겹치는 휴가들에 세로 슬롯(레인)을 배정한다.
@@ -141,14 +141,22 @@ export function LeaveCalendar({
                 holidayName || nonWorking ? "bg-red-50/60" : "bg-white"
               } ${nonWorking ? "cursor-not-allowed" : "cursor-pointer hover:bg-zinc-50"}`}
             >
-              <p className={holidayName ? "font-medium text-red-500" : nonWorking ? "text-red-400" : "text-zinc-400"}>
+              {/* 공휴일 이름은 날짜 줄에 인라인 — 별도 줄을 차지하면 레인
+                  기준선이 밀려 이어지는 휴가 바가 공휴일 셀에서 꼬인다 */}
+              <p
+                className={`truncate ${
+                  holidayName
+                    ? "font-medium text-red-500"
+                    : nonWorking
+                      ? "text-red-400"
+                      : "text-zinc-400"
+                }`}
+              >
                 {i + 1}
+                {holidayName && (
+                  <span className="ml-1 text-[10px]">{holidayName}</span>
+                )}
               </p>
-              {holidayName && (
-                <p className="mt-0.5 truncate rounded bg-red-100 px-1 text-red-600">
-                  {holidayName}
-                </p>
-              )}
               {slots.map((e, lane) => {
                 if (!e) {
                   // 빈 레인 자리 지킴이 — 위 레인의 바가 어긋나지 않게 한다
