@@ -1,4 +1,4 @@
-# Handoff — 세션 인수인계 (2026-08-09 기준)
+# Handoff — 세션 인수인계 (2026-08-09 Phase 5 완료 기준)
 
 새 세션은 이 문서 + [CLAUDE.md](../CLAUDE.md) + [docs/specs/tasks.md](specs/tasks.md)를 읽고 이어서 작업한다. 각 작업의 근거 스펙과 실행 프롬프트는 [docs/prompt-log.md](prompt-log.md)에 기록한다 (새 작업도 같은 형식으로 기록할 것).
 
@@ -9,16 +9,16 @@
   - M1 라이선스 대시보드 / M2 온보딩·오프보딩(NDJSON 스트리밍 파이프라인) / M3 휴가(캘린더 클릭→모달, 공휴일 자동수집, 팀 연차 탭) / M4 근태 / M6 기안(전자결재: 템플릿 4종, 자동 결재선, 순차 결재)
   - 다중 사용자 동시성 강화 (EXCLUDE 제약, 풀 하드닝, after() 등) + 성능 최적화 (쿼리 병렬화, Graph TTL 캐시, jwt 스로틀)
   - M7 포털 셸 (2026-08-09): 사이드바 섹션 그룹핑+아이콘+기안 미결 배지+M365 딥링크 런처(R7.1~R7.3), 홈 대시보드 위젯 그리드(R7.4 — 근무 카드·타일 3종·내 기안·admin 낭비 KPI/감사 로그 + M365 위젯: 안읽은 메일·오늘 일정, 위임 토큰 서버 전용 처리)
-- **남은 것**: Phase 5 (M5 AI 어시스턴트 + MCP 서버), M7 후속(모바일 드로어), Phase 6 (CI, README 정리, Vercel 배포, 데모)
-- 검증 상태: Vitest 65개 통과, lint/build 클린
-- M7 설계 주의: 실시간 숫자는 홈 대시보드에만, 레이아웃 배지는 revalidate 스냅샷 (이유는 design.md M7 절) — M365 화면 iframe 임베드는 금지 결정
+  - Phase 5 / M5 AI 어시스턴트 (2026-08-09): `packages/mcp-server` 도구 10종(단일 소스, stdio 서버 겸용) + `/api/assistant` tool use 루프(NDJSON) + 승인 카드(pending→executing CAS 클레임, 멱등 키, 만료 15분) + 게이트 시나리오 테스트. 실브라우저 E2E: 조회 3종·승인→Graph 실행·거부·감사 로그 4종. 구현 결정·트레이드오프는 design.md M5 절에 기록
+- **남은 것**: M7 후속(모바일 드로어), Phase 6 (CI, README 정리, Vercel 배포, 데모), M3 스트레치(승인 시 Outlook 이벤트)
+- 검증 상태: Vitest 96개 통과, lint/build 클린, MCP stdio JSON-RPC 실검증
 
-## Phase 5 착수 시 알아야 할 것
+## Phase 6 착수 시 알아야 할 것
 
-- 설계는 [design.md](specs/design.md) M5 절 참조: Claude API tool use 루프, 도구는 `packages/mcp-server`로 분리(in-process + stdio 겸용), 변경형 도구는 `approval_required` → 승인 카드 → 실행
-- `approval_requests` 테이블은 스키마에 이미 있으나 **동시성 리뷰 지적 미반영**: 실행-정확히-1회를 위해 `executing` 클레임 상태·idempotency 키·만료가 필요 — Phase 5에서 스키마 보강할 것
-- `ANTHROPIC_API_KEY`, `ASSISTANT_MODEL`(claude-sonnet-5)은 `.env.local`에 이미 설정됨
-- 절대 불변식(CLAUDE.md 3번): 파괴적 액션은 승인 게이트 우회 불가 — 시나리오 테스트 필수
+- Vercel 배포 시 환경변수에 `ANTHROPIC_API_KEY`·`ASSISTANT_MODEL` 추가 필요. `/api/assistant`는 `maxDuration 180` — Vercel 기본 300 안이라 문제 없음
+- MCP stdio 독립 실행: `npm run mcp:stdio` — tsx가 `--conditions=react-server`로 `server-only`를 우회한다(플래그 제거하면 즉시 깨짐)
+- 어시스턴트 E2E 재검증 시: 데모 계정 세션 철회(`revoke_user_sessions`)가 무해해서 승인 플로 테스트에 적합. 오하린(fin2) 세션은 이번 검증에서 이미 철회됨
+- 2-렌즈 리뷰에서 수용한 잔여 한계(수정 안 함): 대화 이력 80메시지 초과 시 '새 대화' 안내로 해소(자동 트리밍 없음), executing 잔류 행 수동 정리(리퍼 없음 — design.md M5 트레이드오프 참조)
 
 ## 환경·운영 정보
 
@@ -43,3 +43,6 @@
 - `.env.local`은 키가 줄바꿈 없이 붙으면 dotenv가 조용히 무시 — 키 파싱 검증 스크립트로 확인
 - drizzle-kit push는 TTY 없으면 대화형 확인에서 죽음 — 변경 내용 확인 후 `--force`
 - 셀을 클릭 요소로 만들 때 `<button>`의 UA 세로 중앙 정렬이 레이아웃을 깨뜨림(캘린더에서 발생) — flex-col justify-start 강제
+- tsx는 `"type": "module"` 없는 리포에서 .ts를 CJS로 변환 — top-level await가 빌드 에러. stdio 엔트리는 async main() 패턴으로
+- 어시스턴트 채팅은 마크다운을 렌더링하지 않음 — 시스템 프롬프트에서 평문 출력을 지시(표·굵게 금지). 지시 없으면 `**`·표 구문이 그대로 노출됨
+- 대화 이력의 tool_use/tool_result 페어링: 스트림이 도중 끊기면 이력 끝의 미완결 tool_use를 롤백해야 다음 요청이 400으로 죽지 않음 (chat.tsx repairHistory)

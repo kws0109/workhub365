@@ -64,6 +64,11 @@ User.ReadWrite.All, Organization.Read.All, Group.ReadWrite.All, Directory.Read.A
 - 도구 분류: 조회형(즉시 실행) vs 변경형(`requiresApproval: true`)
 - 변경형 흐름: tool 실행 요청 → `approval_requests`에 payload 저장 + `approval_required` 반환 → 채팅 UI에 승인 카드 → 승인 시 서버가 실제 실행 → 결과를 대화에 반영
 - 모델: `claude-sonnet-5` 기본(비용), 환경변수로 교체 가능
+- **게이트 강제 구조**: 실행 유일 진입점 `executeTool`이 `approvalGranted` 없이는 변경형을 실행하지 않는다. `approvalGranted`를 전달하는 유일한 코드는 승인 카드 서버 액션이며, `pending → executing` 조건부 UPDATE(CAS) 클레임 성공 후에만 실행한다 — 동시 승인이 이중 실행되지 않는다(실행-정확히-1회). stdio 서버는 `approvalGranted`를 절대 전달하지 않으므로 외부 MCP 클라이언트는 변경형을 실행할 수 없다
+- **멱등·만료**: 승인 요청은 Claude tool_use 블록 id를 멱등 키로 사용(스트림 재시도에도 1건), 만료 15분(만료된 pending은 클레임 조건에서 차단)
+- **알려진 트레이드오프**: 클레임 후 실행 도중 프로세스가 죽으면 행이 `executing`으로 잔류하고 재승인은 불가 — 이중 실행 방지를 우선한 결정. 실행 후 기록 실패는 개별 재시도(감사 로그 불변식 4 보전) + 경고 반환으로 완화
+- **비밀 취급**: 임시 비밀번호는 `approval_requests.result`·감사 로그·모델 컨텍스트에 저장하지 않고 승인 응답에서 1회만 표시. `create_user`는 계정 생성 이후 단계(라이선스/그룹)의 부분 실패를 허용해 비밀번호 유실을 막는다
+- **대화 이력**: 서버 무상태 — 클라이언트가 Anthropic 원본 블록(thinking 포함)을 보관·왕복하고, 스트림 중단 시 미완결 tool_use를 롤백해 tool_result 페어링 400을 방지
 
 ### M6 기안(전자결재)
 - 템플릿(유형별 필드+기본 결재선 규칙)은 코드가 진실의 원천(`src/lib/proposal.ts`), 제출값은 jsonb 스냅샷 — **상세 화면은 스냅샷 기준으로 렌더링**하고 템플릿은 라벨/순서 메타데이터로만 사용 (템플릿 진화에도 기존 문서 보존)

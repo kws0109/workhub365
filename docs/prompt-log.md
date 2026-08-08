@@ -99,3 +99,11 @@ AI 페어 프로그래밍으로 구현한 작업마다 **[근거 스펙 + 실행
 - **구현 요지**: SSO 위임 스코프 확장(`Mail.Read`·`Calendars.Read`·`offline_access`). 위임 토큰은 Auth.js JWT(암호화 쿠키)에만 보관하고 session 콜백에는 싣지 않음(브라우저 노출 차단). 서버 전용 `lib/graph/delegated.ts`가 쿠키 복호화(청크 재조립)와 리프레시 갱신(oid 키 캐시, 재로그인 감지 시 구캐시 폐기, 1시간 미사용 정리)을 담당. 홈에 안읽은 메일(받은편지함 메타 1건 조회)·오늘 일정(calendarView, KST) 위젯 추가 — 토큰 없거나 실패 시 위젯만 강등
 - **검증**: 구세션에서 재로그인 안내 카드 강등 확인 → 사용자 재로그인·동의 후 메일 위젯 실값(1통) E2E 확인. 일정 위젯은 쿼리 200 정상, 목록 렌더는 실이벤트 미검증 — app-only에 Calendars 권한을 부여하지 않아(최소 권한 유지) 테스트 이벤트 생성 불가. 2-렌즈 리뷰 지적 3건 반영: 재로그인 시 구캐시 리프레시 토큰 폐기, 캐시 미사용 정리, Retry-After 상한 정책을 app-only 클라이언트와 통일
 - **결과 커밋**: `66445d2` feat: 홈 M365 위젯 — 안읽은 메일·오늘 일정 (M7 3차, 위임 Graph)
+
+## 2026-08-09 — Phase 5: M5 AI 어시스턴트 (MCP 도구 + 승인 게이트)
+
+- **근거 스펙**: [requirements.md](specs/requirements.md) M5(R5.1~R5.4), [design.md](specs/design.md) M5 절, handoff "Phase 5 착수 시 알아야 할 것"(스키마 보강 지적)
+- **실행 프롬프트 (원문)**: "/clear 하고 Phase 5 진행하자"
+- **구현 요지**: ① `approval_requests` 보강 — `executing` 클레임 상태·멱등 키(tool_use id)·만료 15분 ② `packages/mcp-server` — 도구 10종(조회 5/변경 5) 단일 소스 + `executeTool` 게이트 + stdio MCP 서버(변경형은 승인 안내만) ③ `/api/assistant` — Claude tool use 루프(NDJSON 스트리밍, 원본 블록 왕복) ④ 승인 카드 — 서버 액션이 pending→executing CAS 클레임 후 실행(실행-정확히-1회), 임시 비밀번호는 DB 미저장 1회 표시 ⑤ 게이트 시나리오 테스트 31개. 구현 결정·트레이드오프는 design.md M5 절에 추가 기록
+- **검증**: Vitest 96개·lint·build 클린, MCP stdio JSON-RPC(initialize→tools/list) 실검증, 실브라우저 E2E — 라이선스 낭비 조회(실테넌트 ₩ 집계)·find_users→get_user_detail 체인·52시간 조회·세션 철회 승인→Graph 실행·라이선스 회수 거부·감사 로그 4종(actorType assistant). 2-렌즈 병렬 리뷰 19건 지적 → 반박 검증 → 고유 결함 13건 전부 수정(이력 tool_use 롤백, create_user 부분 실패 허용, 기록 실패 재시도, 스트림 중 승인 차단 등)
+- **결과 커밋**: `d8f7ae0` MCP 패키지+게이트 코어, `51e7671` tool use 루프+승인 카드

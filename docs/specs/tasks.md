@@ -50,10 +50,10 @@ Phase 단위로 브랜치 → PR. 완료 시 체크.
 - [ ] (후속) 모바일: 상단 바 + 햄버거 드로어
 
 ## Phase 5 — M5 AI 어시스턴트
-- [ ] packages/mcp-server: 도구 정의(조회형/변경형) + stdio 실행
-- [ ] /api/assistant tool use 루프(스트리밍)
-- [ ] 승인 카드 UI + approval_requests 흐름
-- [ ] 승인 게이트 시나리오 테스트
+- [x] packages/mcp-server: 도구 정의(조회형 5 + 변경형 5) + stdio 실행 — JSON-RPC(initialize→tools/list) 실검증, 변경형은 stdio에서 승인 안내만 반환
+- [x] /api/assistant tool use 루프(스트리밍) — NDJSON, 원본 블록 왕복, refusal/max_tokens 분기
+- [x] 승인 카드 UI + approval_requests 흐름 — executing CAS 클레임(실행-정확히-1회), 멱등 키, 만료 15분. 실브라우저 E2E(승인→Graph 실행, 거부)
+- [x] 승인 게이트 시나리오 테스트 — 변경형 전체 approval_required, 조회형 부수효과 전무, R5.3 커버리지 (테스트 31개 추가, 총 96개)
 
 ## Phase 6 — 마무리
 - [ ] GitHub Actions CI(lint + test + build)
