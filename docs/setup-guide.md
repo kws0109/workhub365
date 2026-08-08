@@ -48,6 +48,8 @@ WorkHub365를 실제 M365 테넌트에 연결해 실행하기까지의 전체 �
 ## 3. 나머지 환경 준비
 
 - **Neon Postgres**: [neon.tech](https://neon.tech) 무료 프로젝트 생성 → 연결 문자열을 `DATABASE_URL`에 (또는 Vercel Marketplace에서 Neon 연동)
+  - ⚠️ 반드시 **풀러(pooled) 연결 문자열**(호스트에 `-pooler` 포함)을 사용하세요 — 서버리스 다중 인스턴스에서 커넥션 고갈을 막습니다
+  - 스키마 반영: `npm run db:push` + 수동 마이그레이션 `node --env-file=.env.local scripts/apply-manual-migrations.mjs` (EXCLUDE 제약 등 drizzle-kit이 표현 못 하는 DDL)
 - **Anthropic API 키**: [console.anthropic.com](https://console.anthropic.com) → API Keys → `ANTHROPIC_API_KEY`
 - **AUTH_SECRET**: `npx auth secret` 실행으로 생성
 - **ADMIN_EMAILS**: 본인 관리자 계정 이메일 (쉼표 구분)

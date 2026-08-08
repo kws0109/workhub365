@@ -1,5 +1,8 @@
 import { cachedGraph } from "./cache";
-import { graphFetch, graphGetAll } from "./client";
+import { graphFetch, graphGetAll, graphGetAllPaged } from "./client";
+
+// 999명/페이지 × 50페이지 — licenses.ts와 동일한 대형 테넌트 방어선
+const MAX_PAGES = 50;
 
 export type DirectoryUser = {
   id: string;
@@ -17,17 +20,23 @@ export type DirectoryGroup = {
 };
 
 export async function getDirectoryUsers(): Promise<DirectoryUser[]> {
-  return cachedGraph("graph:directory-users", 60_000, () =>
-    graphGetAll<DirectoryUser>(
+  return cachedGraph("graph:directory-users", 60_000, async () => {
+    const { items } = await graphGetAllPaged<DirectoryUser>(
       "/users?$select=id,displayName,userPrincipalName,accountEnabled,department,jobTitle,assignedLicenses&$top=999",
-    ),
-  );
+      { maxPages: MAX_PAGES },
+    );
+    return items;
+  });
 }
 
 export async function getGroups(): Promise<DirectoryGroup[]> {
-  return cachedGraph("graph:groups", 60_000, () =>
-    graphGetAll<DirectoryGroup>("/groups?$select=id,displayName&$top=999"),
-  );
+  return cachedGraph("graph:groups", 60_000, async () => {
+    const { items } = await graphGetAllPaged<DirectoryGroup>(
+      "/groups?$select=id,displayName&$top=999",
+      { maxPages: MAX_PAGES },
+    );
+    return items;
+  });
 }
 
 export async function getDefaultDomain(): Promise<string> {

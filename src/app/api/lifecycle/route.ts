@@ -1,4 +1,5 @@
 import { randomBytes } from "node:crypto";
+import { after } from "next/server";
 import { eq } from "drizzle-orm";
 import { db } from "@/db";
 import { auditLogs, users } from "@/db/schema";
@@ -16,6 +17,9 @@ import {
   type OnboardParams,
   type StepEvent,
 } from "@/lib/lifecycle";
+
+// Graph 스로틀 대기(호출당 최대 ~30초)를 감안한 실행 상한
+export const maxDuration = 120;
 
 // 파이프라인 단계 이벤트를 NDJSON으로 스트리밍한다.
 // 요청 형식:
@@ -120,6 +124,12 @@ export async function POST(req: Request) {
 
   const encoder = new TextEncoder();
   let clientGone = false;
+  // 클라이언트가 스트림을 취소해도 플랫폼이 함수를 조기 종료하지 않도록
+  // 파이프라인 완료를 after()에 묶는다 — 파괴적 작업은 반드시 완주해야 한다
+  let resolvePipelineDone!: () => void;
+  const pipelineDone = new Promise<void>((r) => {
+    resolvePipelineDone = r;
+  });
 
   const stream = new ReadableStream({
     async start(controller) {
@@ -273,9 +283,12 @@ export async function POST(req: Request) {
         // 디렉터리가 변경됐을 수 있다 — 이전 Graph 조회 캐시를 버린다
         bustGraphCache("graph:");
         close();
+        resolvePipelineDone();
       }
     },
   });
+
+  after(() => pipelineDone);
 
   return new Response(stream, {
     headers: {

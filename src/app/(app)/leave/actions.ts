@@ -45,7 +45,9 @@ export async function createLeave(
     };
   }
 
-  // 겹치는 활성 신청(대기/1차/승인) 차단 — 같은 날짜의 이중 차감 경로 제거
+  // 겹치는 활성 신청(대기/1차/승인) 사전 검사 — 친절한 오류 메시지용.
+  // 실제 보장은 DB의 EXCLUDE 제약(leave_requests_no_overlap)이 한다:
+  // 동시 제출의 TOCTOU는 여기서 못 막고, 아래 insert의 23P01로 잡힌다
   const overlapping = await db.query.leaveRequests.findFirst({
     where: and(
       eq(leaveRequests.userId, session.user.id),
@@ -67,14 +69,22 @@ export async function createLeave(
     }
   }
 
-  await db.insert(leaveRequests).values({
-    userId: session.user.id,
-    type,
-    startDate,
-    endDate,
-    days: String(days),
-    reason,
-  });
+  try {
+    await db.insert(leaveRequests).values({
+      userId: session.user.id,
+      type,
+      startDate,
+      endDate,
+      days: String(days),
+      reason,
+    });
+  } catch (e) {
+    // 23P01 = exclusion_violation — 동시 제출로 겹침이 생긴 경우
+    if ((e as { code?: string })?.code === "23P01") {
+      return { error: "해당 기간과 겹치는 신청이 이미 있습니다" };
+    }
+    throw e;
+  }
   revalidatePath("/leave");
   return { ok: true };
 }

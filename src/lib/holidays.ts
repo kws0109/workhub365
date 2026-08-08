@@ -13,7 +13,9 @@ type NagerHoliday = { date: string; localName: string };
 /** 해당 연도의 공휴일을 API에서 받아 DB에 upsert. 성공 시 반영 건수 반환 */
 export async function syncPublicHolidays(year: number): Promise<number> {
   const res = await fetch(`${NAGER_BASE}/${year}/KR`, {
-    // 공휴일은 자주 바뀌지 않는다 — 요청 레벨 캐시 1일
+    // 공휴일은 자주 바뀌지 않는다 — 요청 레벨 캐시 1일.
+    // 외부 API가 매달리면 전 사용자 페이지가 같이 매달린다 — 5초 상한
+    signal: AbortSignal.timeout(5_000),
     next: { revalidate: 86400 },
   });
   if (!res.ok) {
@@ -38,6 +40,10 @@ export async function syncPublicHolidays(year: number): Promise<number> {
 
 // 프로세스 수명 동안 확인이 끝난 연도 — 페이지마다 DB 왕복을 반복하지 않는다
 const ensuredYears = new Set<number>();
+// 동기화 실패 시 10분간 재시도하지 않는다 — 다운된 외부 API가
+// 모든 페이지 로드에 타임아웃 지연을 반복 주입하는 것을 방지
+const failedSyncAt = new Map<number, number>();
+const SYNC_RETRY_MS = 10 * 60_000;
 
 /** 연도별 공휴일 캐시가 없으면 1회 자동 동기화 (실패해도 페이지는 살아 있어야 한다) */
 export async function ensurePublicHolidays(years: number[]): Promise<void> {
@@ -62,9 +68,13 @@ export async function ensurePublicHolidays(years: number[]): Promise<void> {
       ensuredYears.add(year);
       continue;
     }
+    const lastFail = failedSyncAt.get(year);
+    if (lastFail && Date.now() - lastFail < SYNC_RETRY_MS) continue;
     try {
       await syncPublicHolidays(year);
+      failedSyncAt.delete(year);
     } catch (e) {
+      failedSyncAt.set(year, Date.now());
       console.error(`공휴일 자동 동기화 실패 (${year}):`, e);
     }
   }

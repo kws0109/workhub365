@@ -25,7 +25,8 @@ export default async function AuditPage() {
     })
     .from(auditLogs)
     .leftJoin(users, eq(auditLogs.actorId, users.id))
-    .orderBy(desc(auditLogs.createdAt))
+    // seq = 삽입 순서를 따르는 단조 순번 — 동시 쓰기에서도 순서가 안정적
+    .orderBy(desc(auditLogs.seq))
     .limit(100);
 
   return (

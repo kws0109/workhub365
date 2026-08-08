@@ -31,13 +31,23 @@ export async function cachedGraph<T>(
   return p;
 }
 
-/** 디렉터리를 변경한 직후(온보딩/오프보딩 등) 호출 — 이전 조회 결과를 버린다 */
+/**
+ * 디렉터리를 변경한 직후(온보딩/오프보딩 등) 호출 — 이전 조회 결과를 버린다.
+ * inflight도 함께 버려야 한다: 변경 전에 시작된 조회가 bust 이후 완료되며
+ * 옛 데이터를 새 타임스탬프로 재적재하는 것을 막는다.
+ * 주의: 이 무효화는 현재 인스턴스에만 적용된다 — 다른 인스턴스는 TTL(최대 60초)
+ * 동안 이전 데이터를 볼 수 있다 (허용된 트레이드오프, 다중 인스턴스 배포 시 유의)
+ */
 export function bustGraphCache(prefix?: string): void {
   if (!prefix) {
     store.clear();
+    inflight.clear();
     return;
   }
   for (const key of store.keys()) {
     if (key.startsWith(prefix)) store.delete(key);
+  }
+  for (const key of inflight.keys()) {
+    if (key.startsWith(prefix)) inflight.delete(key);
   }
 }

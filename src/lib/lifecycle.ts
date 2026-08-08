@@ -197,7 +197,16 @@ export function offboardSteps(): Step<OffboardCtx>[] {
       run: async (ctx) => {
         const skuIds = await ctx.ops.getUserLicenseSkuIds(ctx.targetUserId);
         if (skuIds.length === 0) return "회수할 라이선스 없음";
-        await ctx.ops.setUserLicenses(ctx.targetUserId, [], skuIds);
+        try {
+          await ctx.ops.setUserLicenses(ctx.targetUserId, [], skuIds);
+        } catch (e) {
+          // 다른 파이프라인(동시 오프보딩)이 먼저 회수한 경우 — 멱등 성공 처리
+          if (e instanceof Error && /does not have|not assigned/i.test(e.message)) {
+            ctx.reclaimedSkuIds = [];
+            return "이미 회수됨 (동시 실행)";
+          }
+          throw e;
+        }
         ctx.reclaimedSkuIds = skuIds; // 감사 로그용 — 어떤 SKU였는지 복구 가능하게
         return `${skuIds.length}개 회수`;
       },

@@ -28,13 +28,16 @@ export async function updateSkuPrice(formData: FormData) {
   // 클라이언트가 보낸 skuId를 테넌트 SKU 목록과 대조 — 파트넘버·표시명은 서버가 결정
   const sku = (await getSubscribedSkus()).find((s) => s.skuId === skuId);
   if (!sku) throw new Error("UNKNOWN_SKU");
-  const prev = await db.query.skuPrices.findFirst({
-    where: eq(skuPrices.skuId, skuId),
-  });
-  const displayName =
-    prev?.displayName ?? defaultSkuInfo(sku.skuPartNumber)?.name ?? null;
 
   await db.transaction(async (tx) => {
+    // prev는 반드시 트랜잭션 안에서 읽는다 — 밖에서 읽으면 동시 수정 시
+    // 감사 로그의 '이전 값'이 거짓이 된다
+    const prev = await tx.query.skuPrices.findFirst({
+      where: eq(skuPrices.skuId, skuId),
+    });
+    const displayName =
+      prev?.displayName ?? defaultSkuInfo(sku.skuPartNumber)?.name ?? null;
+
     await tx
       .insert(skuPrices)
       .values({

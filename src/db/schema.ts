@@ -6,6 +6,7 @@ import {
   timestamp,
   date,
   integer,
+  bigint,
   numeric,
   boolean,
   jsonb,
@@ -88,6 +89,9 @@ export const attendanceRecords = pgTable(
 
 export const auditLogs = pgTable("audit_logs", {
   id: uuid("id").primaryKey().defaultRandom(),
+  // 커밋 순서 재구성용 단조 증가 순번 — createdAt은 트랜잭션 시작 시각이라
+  // 동시 쓰기에서 순서가 뒤집힐 수 있다 (포렌식 모호성 제거)
+  seq: bigint("seq", { mode: "number" }).generatedAlwaysAsIdentity(),
   actorId: uuid("actor_id").references(() => users.id),
   actorType: actorTypeEnum("actor_type").notNull().default("user"),
   action: text("action").notNull(),
