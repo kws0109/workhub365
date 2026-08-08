@@ -8,8 +8,8 @@
   - Phase 0~1: 스캐폴드, Entra SSO(2층 인증), Graph 클라이언트, DB 기반
   - M1 라이선스 대시보드 / M2 온보딩·오프보딩(NDJSON 스트리밍 파이프라인) / M3 휴가(캘린더 클릭→모달, 공휴일 자동수집, 팀 연차 탭) / M4 근태 / M6 기안(전자결재: 템플릿 4종, 자동 결재선, 순차 결재)
   - 다중 사용자 동시성 강화 (EXCLUDE 제약, 풀 하드닝, after() 등) + 성능 최적화 (쿼리 병렬화, Graph TTL 캐시, jwt 스로틀)
-  - M7 포털 셸 (2026-08-09): 사이드바 섹션 그룹핑+아이콘+기안 미결 배지+M365 딥링크 런처(R7.1~R7.3), 홈 대시보드 위젯 그리드(R7.4 자체 데이터 — 근무 카드·타일 3종·내 기안·admin 낭비 KPI/감사 로그)
-- **남은 것**: Phase 5 (M5 AI 어시스턴트 + MCP 서버), M7 후속(홈 M365 위젯 — 위임 스코프 필요, 모바일 드로어), Phase 6 (CI, README 정리, Vercel 배포, 데모)
+  - M7 포털 셸 (2026-08-09): 사이드바 섹션 그룹핑+아이콘+기안 미결 배지+M365 딥링크 런처(R7.1~R7.3), 홈 대시보드 위젯 그리드(R7.4 — 근무 카드·타일 3종·내 기안·admin 낭비 KPI/감사 로그 + M365 위젯: 안읽은 메일·오늘 일정, 위임 토큰 서버 전용 처리)
+- **남은 것**: Phase 5 (M5 AI 어시스턴트 + MCP 서버), M7 후속(모바일 드로어), Phase 6 (CI, README 정리, Vercel 배포, 데모)
 - 검증 상태: Vitest 65개 통과, lint/build 클린
 - M7 설계 주의: 실시간 숫자는 홈 대시보드에만, 레이아웃 배지는 revalidate 스냅샷 (이유는 design.md M7 절) — M365 화면 iframe 임베드는 금지 결정
 
@@ -23,7 +23,7 @@
 ## 환경·운영 정보
 
 - **개발 서버**: `.claude/launch.json`의 `dev` 설정 (preview로 실행, Bash로 띄우지 말 것)
-- **로그인**: 브라우저 세션 쿠키가 초기화되면 사용자에게 Microsoft SSO 재로그인을 요청해야 함 (자격 증명 입력은 대신 못 함)
+- **로그인**: 브라우저 세션 쿠키가 초기화되면 사용자에게 Microsoft SSO 재로그인을 요청해야 함 (자격 증명 입력은 대신 못 함). 2026-08-09부터 SSO가 위임 스코프(Mail.Read·Calendars.Read·offline_access)를 요청 — admin 계정은 동의 완료, 다른 데모 계정은 첫 로그인 시 동의 화면이 뜸
 - **테넌트**: `workhub0109.onmicrosoft.com`, Microsoft 365 E3 25석 (평가판 — 만료 전 데모 확보 필요), 관리자 김 우성(admin, 부서 개발)
 - **DB**: Neon(us-east-2, -pooler) — 스키마는 `npm run db:push` + `node --env-file=.env.local scripts/apply-manual-migrations.mjs`(EXCLUDE 제약 등)
 - **데모 데이터**: `scripts/seed-demo-users.mjs`(테넌트 사용자), `scripts/seed-leave-demo.mjs`(팀·휴가 리셋). 데모 계정 비밀번호는 `demo-users.local.json`(gitignore)
