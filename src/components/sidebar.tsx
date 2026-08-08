@@ -2,42 +2,192 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import type { ReactNode } from "react";
 
 type Role = "admin" | "manager" | "employee";
 
-const MENU: { href: string; label: string; roles: Role[] }[] = [
-  { href: "/", label: "대시보드", roles: ["admin", "manager", "employee"] },
-  { href: "/leave", label: "휴가", roles: ["admin", "manager", "employee"] },
-  { href: "/proposals", label: "기안", roles: ["admin", "manager", "employee"] },
-  { href: "/attendance", label: "근태", roles: ["admin", "manager", "employee"] },
-  { href: "/licenses", label: "라이선스", roles: ["admin"] },
-  { href: "/lifecycle", label: "온보딩/오프보딩", roles: ["admin"] },
-  { href: "/assistant", label: "AI 어시스턴트", roles: ["admin"] },
-  { href: "/audit", label: "감사 로그", roles: ["admin"] },
+/* 아이콘은 외부 라이브러리 없이 인라인 SVG — currentColor라 활성/비활성 색이 텍스트를 따라간다 (design.md M7) */
+function Icon({
+  children,
+  className = "h-4 w-4 shrink-0",
+}: {
+  children: ReactNode;
+  className?: string;
+}) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={1.5}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={className}
+      aria-hidden
+    >
+      {children}
+    </svg>
+  );
+}
+
+const ICONS = {
+  home: (
+    <>
+      <path d="M3 11.5 12 4l9 7.5" />
+      <path d="M5 10v10h5v-6h4v6h5V10" />
+    </>
+  ),
+  calendar: (
+    <>
+      <rect x="3" y="5" width="18" height="16" rx="2" />
+      <path d="M8 3v4M16 3v4M3 10h18" />
+    </>
+  ),
+  proposal: (
+    <>
+      <path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z" />
+      <path d="M14 3v6h6M9 14l2 2 4-4" />
+    </>
+  ),
+  clock: (
+    <>
+      <circle cx="12" cy="12" r="9" />
+      <path d="M12 7v5l3 2" />
+    </>
+  ),
+  license: (
+    <>
+      <rect x="2" y="5" width="20" height="14" rx="2" />
+      <path d="M2 10h20" />
+    </>
+  ),
+  lifecycle: (
+    <>
+      <circle cx="9" cy="8" r="3.5" />
+      <path d="M3 20v-1a6 6 0 0 1 12 0v1M19 8v6M22 11h-6" />
+    </>
+  ),
+  assistant: (
+    <>
+      <path d="M12 3l1.8 4.7 4.7 1.8-4.7 1.8L12 16l-1.8-4.7-4.7-1.8 4.7-1.8z" />
+      <path d="M19 15l.8 2.2 2.2.8-2.2.8-.8 2.2-.8-2.2-2.2-.8 2.2-.8z" />
+    </>
+  ),
+  audit: (
+    <>
+      <path d="M8 6h13M8 12h13M8 18h13" />
+      <path d="M3.5 6h.01M3.5 12h.01M3.5 18h.01" />
+    </>
+  ),
+  mail: (
+    <>
+      <rect x="2" y="4" width="20" height="16" rx="2" />
+      <path d="m22 7-10 6L2 7" />
+    </>
+  ),
+  chat: <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />,
+  cloud: <path d="M18.5 19a4.5 4.5 0 0 0 .4-9A6.5 6.5 0 0 0 6.4 8.5 5 5 0 0 0 7 19z" />,
+  planner: (
+    <>
+      <rect x="3" y="3" width="18" height="18" rx="2" />
+      <path d="m9 11.5 2 2 4-4.5" />
+    </>
+  ),
+  external: (
+    <>
+      <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
+      <path d="M15 3h6v6M10 14 21 3" />
+    </>
+  ),
+} satisfies Record<string, ReactNode>;
+
+type Item = { href: string; label: string; icon: keyof typeof ICONS };
+
+const MY_MENU: Item[] = [
+  { href: "/", label: "대시보드", icon: "home" },
+  { href: "/leave", label: "휴가", icon: "calendar" },
+  { href: "/proposals", label: "기안", icon: "proposal" },
+  { href: "/attendance", label: "근태", icon: "clock" },
 ];
 
-export function Sidebar({ role }: { role: Role }) {
+const ADMIN_MENU: Item[] = [
+  { href: "/licenses", label: "라이선스", icon: "license" },
+  { href: "/lifecycle", label: "온보딩/오프보딩", icon: "lifecycle" },
+  { href: "/assistant", label: "AI 어시스턴트", icon: "assistant" },
+  { href: "/audit", label: "감사 로그", icon: "audit" },
+];
+
+/* 테넌트 무관 딥링크 — 새 탭 링크만, 임베드 금지 (R7.3) */
+const M365_APPS: Item[] = [
+  { href: "https://outlook.office.com/mail/", label: "Outlook 메일", icon: "mail" },
+  { href: "https://outlook.office.com/calendar/", label: "Outlook 캘린더", icon: "calendar" },
+  { href: "https://teams.microsoft.com/", label: "Teams", icon: "chat" },
+  { href: "https://www.office.com/launch/onedrive", label: "OneDrive", icon: "cloud" },
+  { href: "https://planner.cloud.microsoft/", label: "Planner", icon: "planner" },
+];
+
+export function Sidebar({
+  role,
+  pendingApprovals,
+}: {
+  role: Role;
+  pendingApprovals: number;
+}) {
   const pathname = usePathname();
 
+  const renderItem = (m: Item) => {
+    const active =
+      m.href === "/" ? pathname === "/" : pathname.startsWith(m.href);
+    return (
+      <Link
+        key={m.href}
+        href={m.href}
+        aria-current={active ? "page" : undefined}
+        className={`flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-medium transition ${
+          active ? "bg-zinc-900 text-white" : "text-zinc-600 hover:bg-zinc-100"
+        }`}
+      >
+        <Icon>{ICONS[m.icon]}</Icon>
+        {m.label}
+        {m.href === "/proposals" && pendingApprovals > 0 && (
+          <span className="ml-auto rounded-full bg-amber-100 px-1.5 py-0.5 text-[11px] font-semibold leading-none text-amber-800">
+            {pendingApprovals}
+          </span>
+        )}
+      </Link>
+    );
+  };
+
   return (
-    <nav className="flex flex-col gap-1 p-3">
-      {MENU.filter((m) => m.roles.includes(role)).map((m) => {
-        const active =
-          m.href === "/" ? pathname === "/" : pathname.startsWith(m.href);
-        return (
-          <Link
+    <nav className="flex flex-1 flex-col gap-5 overflow-y-auto p-3">
+      <div className="flex flex-col gap-1">
+        <p className="px-3 pb-1 text-xs font-medium text-zinc-400">내 업무</p>
+        {MY_MENU.map(renderItem)}
+      </div>
+      {role === "admin" && (
+        <div className="flex flex-col gap-1">
+          <p className="px-3 pb-1 text-xs font-medium text-zinc-400">관리</p>
+          {ADMIN_MENU.map(renderItem)}
+        </div>
+      )}
+      <div className="mt-auto flex flex-col gap-0.5 border-t border-zinc-100 pt-3">
+        <p className="px-3 pb-1 text-xs font-medium text-zinc-400">M365 앱</p>
+        {M365_APPS.map((m) => (
+          <a
             key={m.href}
             href={m.href}
-            className={`rounded-lg px-3 py-2 text-sm font-medium transition ${
-              active
-                ? "bg-zinc-900 text-white"
-                : "text-zinc-600 hover:bg-zinc-100"
-            }`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="group flex items-center gap-2.5 rounded-lg px-3 py-1.5 text-[13px] text-zinc-400 transition hover:bg-zinc-50 hover:text-zinc-600"
           >
+            <Icon>{ICONS[m.icon]}</Icon>
             {m.label}
-          </Link>
-        );
-      })}
+            <span className="ml-auto text-zinc-300 transition group-hover:text-zinc-500">
+              <Icon className="h-3 w-3 shrink-0">{ICONS.external}</Icon>
+            </span>
+          </a>
+        ))}
+      </div>
     </nav>
   );
 }
