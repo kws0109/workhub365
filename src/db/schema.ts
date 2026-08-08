@@ -118,6 +118,59 @@ export const approvalRequests = pgTable("approval_requests", {
   decidedAt: timestamp("decided_at", { withTimezone: true }),
 });
 
+export const proposalStatusEnum = pgEnum("proposal_status", [
+  "in_progress",
+  "approved",
+  "rejected",
+  "cancelled",
+]);
+export const proposalStepStatusEnum = pgEnum("proposal_step_status", [
+  "pending",
+  "approved",
+  "rejected",
+]);
+
+// 기안(전자결재) 문서. 템플릿 정의는 코드(src/lib/proposal.ts)가 진실의 원천 —
+// content는 템플릿 필드 키→값의 jsonb 스냅샷
+export const proposals = pgTable("proposals", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  templateKey: text("template_key").notNull(),
+  title: text("title").notNull(),
+  authorId: uuid("author_id")
+    .notNull()
+    .references(() => users.id),
+  content: jsonb("content").notNull(),
+  status: proposalStatusEnum("status").notNull().default("in_progress"),
+  // 순차 결재 — 현재 결재 차례 (1부터). 전이는 조건부 UPDATE로만
+  currentStep: integer("current_step").notNull().default(1),
+  createdAt: timestamp("created_at", { withTimezone: true })
+    .notNull()
+    .defaultNow(),
+  decidedAt: timestamp("decided_at", { withTimezone: true }),
+});
+
+export const proposalApprovers = pgTable(
+  "proposal_approvers",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    proposalId: uuid("proposal_id")
+      .notNull()
+      .references(() => proposals.id),
+    step: integer("step").notNull(),
+    approverId: uuid("approver_id")
+      .notNull()
+      .references(() => users.id),
+    status: proposalStepStatusEnum("status").notNull().default("pending"),
+    comment: text("comment"),
+    decidedAt: timestamp("decided_at", { withTimezone: true }),
+  },
+  (t) => [
+    uniqueIndex("proposal_step_uq").on(t.proposalId, t.step),
+    // 같은 사람이 결재선에 두 번 들어갈 수 없다
+    uniqueIndex("proposal_approver_uq").on(t.proposalId, t.approverId),
+  ],
+);
+
 export const holidaySourceEnum = pgEnum("holiday_source", ["public", "company"]);
 
 // 휴일: public = 공휴일 API 동기화, company = 관리자가 설정한 전사 휴일/임시 공휴일
