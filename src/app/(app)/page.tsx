@@ -13,6 +13,8 @@ import {
   type OvertimeLevel,
 } from "@/lib/attendance";
 import { GraphError } from "@/lib/graph/client";
+import { getDelegatedGraphToken } from "@/lib/graph/delegated";
+import { getInboxUnreadCount, getTodayEvents } from "@/lib/graph/me";
 import { getLicenseUsers, getSubscribedSkus } from "@/lib/graph/licenses";
 import { calcLicenseWaste } from "@/lib/license-waste";
 import { buildPriceMap } from "@/lib/sku-prices";
@@ -162,6 +164,18 @@ export default async function HomePage() {
         </StatTile>
       </div>
 
+      {/* M365 위젯 — 위임 토큰(본인 데이터)만, 없으면 재로그인 안내로 강등 */}
+      <Suspense
+        fallback={
+          <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <div className="h-32 animate-pulse rounded-xl border border-zinc-200 bg-white" />
+            <div className="h-32 animate-pulse rounded-xl border border-zinc-200 bg-white" />
+          </div>
+        }
+      >
+        <M365Widgets today={today} />
+      </Suspense>
+
       {/* 내 기안 최근 */}
       <section className="mt-4 rounded-xl border border-zinc-200 bg-white p-5">
         <div className="flex items-center justify-between">
@@ -257,6 +271,65 @@ function StatTile({
         {sub}
       </p>
     </Link>
+  );
+}
+
+/** M365 위젯: 안읽은 메일 + 오늘 일정 — 위임 토큰 없으면(구세션) 재로그인 안내 */
+async function M365Widgets({ today }: { today: string }) {
+  const token = await getDelegatedGraphToken();
+  if (!token) {
+    return (
+      <div className="mt-4 rounded-xl border border-dashed border-zinc-300 bg-white p-5 text-sm text-zinc-500">
+        메일·일정 위젯을 사용하려면 <span className="font-semibold">다시 로그인</span>이
+        필요합니다 — 로그인 시 Microsoft 동의 화면에서 메일·일정 읽기 권한을
+        승인해 주세요 (사이드바 하단 로그아웃 → 재로그인)
+      </div>
+    );
+  }
+
+  const [unread, events] = await Promise.all([
+    getInboxUnreadCount(token).catch(() => null),
+    getTodayEvents(token, today).catch(() => null),
+  ]);
+
+  return (
+    <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
+      <a
+        href="https://outlook.office.com/mail/"
+        target="_blank"
+        rel="noopener noreferrer"
+        className="rounded-xl border border-zinc-200 bg-white p-5 transition hover:border-zinc-400"
+      >
+        <p className="text-xs font-medium text-zinc-500">안읽은 메일</p>
+        {unread === null ? (
+          <p className="mt-2 text-sm text-zinc-400">조회 실패 — 잠시 후 다시 시도</p>
+        ) : (
+          <p className="mt-1 text-3xl font-bold tracking-tight tabular-nums">
+            {unread}통
+          </p>
+        )}
+        <p className="mt-2 text-xs text-zinc-400">Outlook에서 열기 ↗</p>
+      </a>
+      <section className="rounded-xl border border-zinc-200 bg-white p-5">
+        <p className="text-xs font-medium text-zinc-500">오늘 일정</p>
+        {events === null ? (
+          <p className="mt-2 text-sm text-zinc-400">조회 실패 — 잠시 후 다시 시도</p>
+        ) : events.length === 0 ? (
+          <p className="mt-2 text-sm text-zinc-400">오늘 일정이 없습니다</p>
+        ) : (
+          <ul className="mt-2 divide-y divide-zinc-100 text-sm">
+            {events.map((e, i) => (
+              <li key={i} className="flex items-center gap-3 py-1.5">
+                <span className="shrink-0 font-mono text-xs text-zinc-500 tabular-nums">
+                  {e.isAllDay ? "종일" : e.start.dateTime.slice(11, 16)}
+                </span>
+                <span className="truncate">{e.subject ?? "(제목 없음)"}</span>
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
+    </div>
   );
 }
 

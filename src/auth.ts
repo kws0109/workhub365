@@ -23,7 +23,18 @@ function expectedTenantId(): string | null {
 }
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
-  providers: [MicrosoftEntraID],
+  providers: [
+    MicrosoftEntraID({
+      authorization: {
+        params: {
+          // 기본 스코프 + 홈 대시보드 M365 위젯(R7.4)용 메일·일정 읽기.
+          // offline_access: 리프레시 토큰 발급 — 액세스 토큰(~1시간) 만료 후 위젯 유지
+          scope:
+            "openid profile email User.Read Mail.Read Calendars.Read offline_access",
+        },
+      },
+    }),
+  ],
   pages: { signIn: "/login" },
   callbacks: {
     async signIn({ profile }) {
@@ -98,9 +109,16 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         });
       return true;
     },
-    async jwt({ token, profile }) {
+    async jwt({ token, profile, account }) {
       if (typeof profile?.oid === "string") {
         token.oid = profile.oid;
+      }
+      // 최초 로그인 시 위임 Graph 토큰을 JWT(암호화 쿠키)에 보관 —
+      // 읽기는 서버 전용 lib/graph/delegated.ts만, session 콜백에는 싣지 않는다
+      if (account?.access_token) {
+        token.graphAccessToken = account.access_token;
+        token.graphExpiresAt = (account.expires_at ?? 0) * 1000;
+        token.graphRefreshToken = account.refresh_token;
       }
       // 역할 갱신·삭제 확인은 60초에 1회만 — 매 요청 DB 왕복(원격 DB ~200ms)을 피한다.
       // 트레이드오프: 승격/강등/삭제 반영이 최대 60초 지연 (기존 매 요청 대비 허용 범위)

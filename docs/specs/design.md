@@ -16,7 +16,7 @@
 
 | 층 | 용도 | 방식 | 자격 증명 |
 |---|---|---|---|
-| 사용자 SSO | 직원 로그인, 역할 판별 | Auth.js(NextAuth) + Microsoft Entra ID provider (delegated, openid/profile/email/User.Read) | 앱 등록 #1 |
+| 사용자 SSO | 직원 로그인, 역할 판별, 본인 메일·일정 위젯(M7) | Auth.js(NextAuth) + Microsoft Entra ID provider (delegated, openid/profile/email/User.Read/Mail.Read/Calendars.Read/offline_access) | 앱 등록 #1 |
 | 관리 액션 | Graph 관리 호출 | client credentials(app-only), `.default` scope + admin consent | 앱 등록 #2 |
 
 - 역할(admin/manager/employee)은 DB `users.role`에 저장. 최초 로그인 시 employee로 생성, 승격은 admin이 수행(부트스트랩: `ADMIN_EMAILS` 환경변수에 나열된 계정은 **매 로그인마다** 평가해 admin으로 승격 — 최초 가입 시에만 적용하면 데드락)
@@ -78,7 +78,7 @@ User.ReadWrite.All, Organization.Read.All, Group.ReadWrite.All, Directory.Read.A
 - 아이콘은 외부 라이브러리 없이 인라인 SVG(stroke 1.5, currentColor) — 의존성 최소화
 - M365 딥링크는 테넌트 무관 URL 상수(outlook.office.com/mail 등), `target="_blank" rel="noopener noreferrer"`. iframe 임베드 금지(R7 원칙)
 - 홈 대시보드(R7.4): 위젯 데이터는 단일 병렬 스테이지(Promise.all), 미결 건수는 `countMyTurnProposals`(src/lib/proposal-queries.ts, React cache로 레이아웃과 요청당 1회 공유). admin 위젯(낭비 KPI+감사 로그)은 Graph 호출이 느릴 수 있어 Suspense로 스트리밍하고, Graph 실패 시 해당 위젯만 오류 강등(페이지 전체를 죽이지 않음). 출퇴근 액션은 근태 화면과 동일 서버 액션 재사용 + `revalidatePath("/")` 추가
-- M365 위젯(안읽은 메일·오늘 일정) 전제조건: 위임 스코프 `Mail.Read`·`Calendars.Read` 추가 + 액세스 토큰 세션 보관·갱신(`offline_access`) + 재로그인 동의 필요 — 현재 SSO는 User.Read만이라 미구현. app-only 토큰으로 개인 메일을 읽는 것은 인증 2층 원칙 위반이므로 금지
+- M365 위젯(안읽은 메일·오늘 일정): 위임 스코프 `Mail.Read`·`Calendars.Read`·`offline_access`로 구현. **위임 토큰은 Auth.js JWT(암호화 쿠키)에만 보관하고 session 콜백에는 싣지 않는다** — session에 실으면 `/api/auth/session`으로 브라우저에 노출된다. 읽기는 서버 전용 `lib/graph/delegated.ts`가 쿠키를 직접 복호화(`next-auth/jwt` decode, salt=쿠키명, `.0/.1` 청크 재조립). 만료 시 리프레시 토큰으로 갱신하되 RSC에서는 쿠키 재기록이 불가하므로 결과는 oid 키 인메모리 캐시로 재사용. 갱신 실패·구세션(스코프 없음)은 null → 위젯이 "재로그인 안내"로 강등되고 페이지는 계속 동작. app-only 토큰으로 개인 메일을 읽는 것은 인증 2층 원칙 위반이므로 금지
 
 ## 오류 처리 원칙
 
