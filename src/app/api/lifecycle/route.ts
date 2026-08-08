@@ -3,6 +3,7 @@ import { eq } from "drizzle-orm";
 import { db } from "@/db";
 import { auditLogs, users } from "@/db/schema";
 import { assertRole } from "@/lib/auth-helpers";
+import { bustGraphCache } from "@/lib/graph/cache";
 import * as graphUsers from "@/lib/graph/users";
 import {
   generateTempPassword,
@@ -269,6 +270,8 @@ export async function POST(req: Request) {
           error: e instanceof Error ? e.message : "UNKNOWN",
         });
       } finally {
+        // 디렉터리가 변경됐을 수 있다 — 이전 Graph 조회 캐시를 버린다
+        bustGraphCache("graph:");
         close();
       }
     },

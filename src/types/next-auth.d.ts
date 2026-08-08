@@ -20,5 +20,7 @@ declare module "next-auth/jwt" {
     oid?: string;
     dbId?: string;
     role?: "admin" | "manager" | "employee";
+    /** 역할/삭제 확인을 마지막으로 수행한 시각 (epoch ms) — 60초 스로틀용 */
+    roleCheckedAt?: number;
   }
 }

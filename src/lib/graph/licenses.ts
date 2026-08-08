@@ -1,3 +1,4 @@
+import { cachedGraph } from "./cache";
 import { GraphError, graphGetAllPaged } from "./client";
 
 export type SubscribedSku = {
@@ -28,8 +29,10 @@ const LICENSED_FILTER = "$filter=assignedLicenses/$count ne 0&$count=true";
 const MAX_PAGES = 50;
 
 export async function getSubscribedSkus(): Promise<SubscribedSku[]> {
-  const { items } = await graphGetAllPaged<SubscribedSku>("/subscribedSkus");
-  return items;
+  return cachedGraph("graph:skus", 60_000, async () => {
+    const { items } = await graphGetAllPaged<SubscribedSku>("/subscribedSkus");
+    return items;
+  });
 }
 
 /** signInActivity 조회 불가(P1 없음/B2C)를 나타내는 Graph 오류인지 */
@@ -48,6 +51,14 @@ function isSignInActivityUnavailable(e: unknown): boolean {
  * 그 외 400(쿼리 버그 등)은 그대로 던져 조용한 오진을 막는다 (R1.2)
  */
 export async function getLicenseUsers(): Promise<{
+  users: LicenseUser[];
+  signInAvailable: boolean;
+  truncated: boolean;
+}> {
+  return cachedGraph("graph:license-users", 60_000, () => fetchLicenseUsers());
+}
+
+async function fetchLicenseUsers(): Promise<{
   users: LicenseUser[];
   signInAvailable: boolean;
   truncated: boolean;

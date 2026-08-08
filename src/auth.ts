@@ -102,7 +102,16 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       if (typeof profile?.oid === "string") {
         token.oid = profile.oid;
       }
-      if (typeof token.oid === "string") {
+      // 역할 갱신·삭제 확인은 60초에 1회만 — 매 요청 DB 왕복(원격 DB ~200ms)을 피한다.
+      // 트레이드오프: 승격/강등/삭제 반영이 최대 60초 지연 (기존 매 요청 대비 허용 범위)
+      const ROLE_REFRESH_MS = 60_000;
+      const checkedAt =
+        typeof token.roleCheckedAt === "number" ? token.roleCheckedAt : 0;
+      const stale =
+        !token.dbId ||
+        typeof profile?.oid === "string" ||
+        Date.now() - checkedAt > ROLE_REFRESH_MS;
+      if (typeof token.oid === "string" && stale) {
         const row = await db.query.users.findFirst({
           where: eq(users.entraId, token.oid),
         });
@@ -115,6 +124,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           delete token.dbId;
           delete token.role;
         }
+        token.roleCheckedAt = Date.now();
       }
       return token;
     },

@@ -1,4 +1,4 @@
-import { and, eq, gte } from "drizzle-orm";
+import { and, eq, gte, sql } from "drizzle-orm";
 import { db } from "@/db";
 import { attendanceRecords, users } from "@/db/schema";
 import { requireSession } from "@/lib/auth-helpers";
@@ -30,42 +30,45 @@ export default async function AttendancePage() {
   const isApprover =
     session.user.role === "admin" || session.user.role === "manager";
 
-  const me = await db.query.users.findFirst({
-    where: eq(users.id, session.user.id),
-  });
+  // manager 부서 범위는 서브쿼리로 흡수 — 독립 쿼리 2개를 한 스테이지에 병렬 실행
+  const myDepartment = db
+    .select({ department: users.department })
+    .from(users)
+    .where(eq(users.id, session.user.id));
 
-  const myWeek = await db.query.attendanceRecords.findMany({
-    where: and(
-      eq(attendanceRecords.userId, session.user.id),
-      gte(attendanceRecords.date, weekStart),
-    ),
-    orderBy: attendanceRecords.date,
-  });
+  const [myWeek, teamWeek] = await Promise.all([
+    db.query.attendanceRecords.findMany({
+      where: and(
+        eq(attendanceRecords.userId, session.user.id),
+        gte(attendanceRecords.date, weekStart),
+      ),
+      orderBy: attendanceRecords.date,
+    }),
+    // manager는 자기 부서만, admin은 전사 — 결재선 범위와 동일한 원칙
+    isApprover
+      ? db
+          .select({
+            date: attendanceRecords.date,
+            workedMinutes: attendanceRecords.workedMinutes,
+            userId: attendanceRecords.userId,
+            userName: users.name,
+            department: users.department,
+          })
+          .from(attendanceRecords)
+          .innerJoin(users, eq(attendanceRecords.userId, users.id))
+          .where(
+            and(
+              gte(attendanceRecords.date, weekStart),
+              ...(session.user.role === "manager"
+                ? [eq(users.department, sql`(${myDepartment})`)]
+                : []),
+            ),
+          )
+      : Promise.resolve([]),
+  ]);
   const myToday = myWeek.find((r) => r.date === today);
   const weeklyMinutes = aggregateWeeklyMinutes(myWeek, weekStart);
   const level = overtimeLevel(weeklyMinutes);
-
-  // manager는 자기 부서만, admin은 전사 — 결재선 범위와 동일한 원칙
-  const teamWeek = isApprover
-    ? await db
-        .select({
-          date: attendanceRecords.date,
-          workedMinutes: attendanceRecords.workedMinutes,
-          userId: attendanceRecords.userId,
-          userName: users.name,
-          department: users.department,
-        })
-        .from(attendanceRecords)
-        .innerJoin(users, eq(attendanceRecords.userId, users.id))
-        .where(
-          and(
-            gte(attendanceRecords.date, weekStart),
-            ...(session.user.role === "manager"
-              ? [eq(users.department, me?.department ?? "__none__")]
-              : []),
-          ),
-        )
-    : [];
 
   const teamTotals = new Map<
     string,

@@ -1,4 +1,4 @@
-import { and, desc, eq, gte, inArray, lte, ne, or } from "drizzle-orm";
+import { and, desc, eq, gte, inArray, lte, ne, or, sql } from "drizzle-orm";
 import { db } from "@/db";
 import { leaveRequests, users } from "@/db/schema";
 import { requireSession } from "@/lib/auth-helpers";
@@ -33,10 +33,6 @@ export default async function LeavePage({
   const role = session.user.role;
   const isApprover = role === "admin" || role === "manager";
 
-  const me = await db.query.users.findFirst({
-    where: eq(users.id, session.user.id),
-  });
-
   // ── 달력·휴일 준비 ──
   const { month } = await searchParams;
   const todayKst = kstDateOf(new Date());
@@ -44,97 +40,101 @@ export default async function LeavePage({
   const ym = /^\d{4}-\d{2}$/.test(month ?? "") ? month! : thisMonth;
   const [y, m] = ym.split("-").map(Number);
   const thisYear = Number(todayKst.slice(0, 4));
-
-  // 공휴일 자동 동기화: 표시 연도 + 신청 폼이 다루는 올해·내년
-  await Promise.all(
-    [...new Set([y, thisYear, thisYear + 1])].map((yr) =>
-      ensurePublicHolidays(yr),
-    ),
-  );
-
   const monthStart = `${ym}-01`;
   const daysInMonth = new Date(Date.UTC(y, m, 0)).getUTCDate();
   const monthEnd = `${ym}-${String(daysInMonth).padStart(2, "0")}`;
 
-  const [monthHolidays, formHolidays] = await Promise.all([
-    getHolidaysBetween(monthStart, monthEnd),
-    getHolidaysBetween(`${thisYear}-01-01`, `${thisYear + 1}-12-31`),
-  ]);
-  const myRequests = await db.query.leaveRequests.findMany({
-    where: eq(leaveRequests.userId, session.user.id),
-    orderBy: desc(leaveRequests.createdAt),
-    limit: 20,
-  });
+  // 원격 DB는 왕복당 수백 ms — 부서 의존은 상관 서브쿼리로 흡수해
+  // 모든 쿼리를 단일 병렬 스테이지로 실행한다.
+  const myDepartment = db
+    .select({ department: users.department })
+    .from(users)
+    .where(eq(users.id, session.user.id));
+  // 직원 가시성: 같은 부서 (부서 미지정이면 본인만 — OR 절이 커버)
+  const sameDeptUserIds = db
+    .select({ id: users.id })
+    .from(users)
+    .where(eq(users.department, sql`(${myDepartment})`));
 
-  // ── 결재함: manager는 자기 부서만, admin은 전체 ──
-  const inbox = isApprover
-    ? await db
+  // 공휴일 보장은 프로세스 첫 요청에서만 실제 작업 — 휴일 읽기는 이것만 대기
+  const ensured = ensurePublicHolidays([y, thisYear, thisYear + 1]);
+
+  const [me, myRequests, myActiveRows, monthHolidays, formHolidays, inbox, approvedRows] =
+    await Promise.all([
+      db.query.users.findFirst({ where: eq(users.id, session.user.id) }),
+      db.query.leaveRequests.findMany({
+        where: eq(leaveRequests.userId, session.user.id),
+        orderBy: desc(leaveRequests.createdAt),
+        limit: 20,
+      }),
+      // 내 대기·1차 승인 신청도 캘린더에 표시 (점선) — 신청 직후 바로 보여야 한다
+      db.query.leaveRequests.findMany({
+        where: and(
+          eq(leaveRequests.userId, session.user.id),
+          inArray(leaveRequests.status, ["pending", "approved_1"]),
+          lte(leaveRequests.startDate, monthEnd),
+          gte(leaveRequests.endDate, monthStart),
+        ),
+      }),
+      ensured.then(() => getHolidaysBetween(monthStart, monthEnd)),
+      ensured.then(() =>
+        getHolidaysBetween(`${thisYear}-01-01`, `${thisYear + 1}-12-31`),
+      ),
+      // 결재함: manager는 자기 부서만(서브쿼리), admin은 전체
+      isApprover
+        ? db
+            .select({
+              id: leaveRequests.id,
+              type: leaveRequests.type,
+              startDate: leaveRequests.startDate,
+              endDate: leaveRequests.endDate,
+              days: leaveRequests.days,
+              reason: leaveRequests.reason,
+              status: leaveRequests.status,
+              userName: users.name,
+              department: users.department,
+            })
+            .from(leaveRequests)
+            .innerJoin(users, eq(leaveRequests.userId, users.id))
+            .where(
+              and(
+                or(
+                  eq(leaveRequests.status, "pending"),
+                  eq(leaveRequests.status, "approved_1"),
+                ),
+                ne(leaveRequests.userId, session.user.id),
+                ...(role === "manager"
+                  ? [eq(users.department, sql`(${myDepartment})`)]
+                  : []),
+              ),
+            )
+            .orderBy(desc(leaveRequests.createdAt))
+        : Promise.resolve([]),
+      db
         .select({
-          id: leaveRequests.id,
-          type: leaveRequests.type,
           startDate: leaveRequests.startDate,
           endDate: leaveRequests.endDate,
-          days: leaveRequests.days,
-          reason: leaveRequests.reason,
-          status: leaveRequests.status,
+          type: leaveRequests.type,
           userName: users.name,
-          department: users.department,
         })
         .from(leaveRequests)
         .innerJoin(users, eq(leaveRequests.userId, users.id))
         .where(
           and(
-            or(
-              eq(leaveRequests.status, "pending"),
-              eq(leaveRequests.status, "approved_1"),
-            ),
-            ne(leaveRequests.userId, session.user.id),
-            ...(role === "manager"
-              ? [eq(users.department, me?.department ?? "__none__")]
+            eq(leaveRequests.status, "approved"),
+            lte(leaveRequests.startDate, monthEnd),
+            gte(leaveRequests.endDate, monthStart),
+            ...(role === "employee"
+              ? [
+                  or(
+                    eq(leaveRequests.userId, session.user.id),
+                    inArray(leaveRequests.userId, sameDeptUserIds),
+                  ),
+                ]
               : []),
           ),
-        )
-        .orderBy(desc(leaveRequests.createdAt))
-    : [];
-
-  const visibleUserIds =
-    role === "employee"
-      ? (
-          await db.query.users.findMany({
-            where: me?.department
-              ? eq(users.department, me.department)
-              : eq(users.id, session.user.id),
-          })
-        ).map((u) => u.id)
-      : null; // null = 전체
-
-  const approvedRows = await db
-    .select({
-      startDate: leaveRequests.startDate,
-      endDate: leaveRequests.endDate,
-      type: leaveRequests.type,
-      userName: users.name,
-    })
-    .from(leaveRequests)
-    .innerJoin(users, eq(leaveRequests.userId, users.id))
-    .where(
-      and(
-        eq(leaveRequests.status, "approved"),
-        lte(leaveRequests.startDate, monthEnd),
-        gte(leaveRequests.endDate, monthStart),
-        ...(visibleUserIds ? [inArray(leaveRequests.userId, visibleUserIds)] : []),
-      ),
-    );
-
-  // 내 대기·1차 승인 신청도 캘린더에 표시 (점선 스타일) — 신청 직후 바로 보여야 한다
-  const myActiveRows = await db.query.leaveRequests.findMany({
-    where: and(
-      eq(leaveRequests.userId, session.user.id),
-      inArray(leaveRequests.status, ["pending", "approved_1"]),
-      lte(leaveRequests.startDate, monthEnd),
-      gte(leaveRequests.endDate, monthStart),
-    ),
-  });
+        ),
+    ]);
 
   const calendarEntries = [
     ...approvedRows.map((r) => ({ ...r, status: "approved" as const })),

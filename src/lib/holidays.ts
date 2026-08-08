@@ -1,5 +1,5 @@
 import "server-only";
-import { and, eq, gte, lte } from "drizzle-orm";
+import { and, eq, gte, lte, sql } from "drizzle-orm";
 import { db } from "@/db";
 import { holidays } from "@/db/schema";
 
@@ -20,36 +20,53 @@ export async function syncPublicHolidays(year: number): Promise<number> {
     throw new Error(`공휴일 API 응답 오류 (${res.status})`);
   }
   const list = (await res.json()) as NagerHoliday[];
-  let count = 0;
-  for (const h of list) {
-    await db
-      .insert(holidays)
-      .values({ date: h.date, name: h.localName, source: "public" })
-      .onConflictDoUpdate({
-        target: holidays.date,
-        // 관리자가 설정한 전사 휴일(company)을 공휴일 동기화가 덮어쓰지 않도록
-        // 이름만 갱신하고 source는 기존 값 유지
-        set: { name: h.localName },
-      });
-    count++;
-  }
-  return count;
+  if (list.length === 0) return 0;
+  // 단건 루프는 원격 DB에 연도당 15회 왕복한다 — 반드시 배치 1회로
+  await db
+    .insert(holidays)
+    .values(
+      list.map((h) => ({
+        date: h.date,
+        name: h.localName,
+        source: "public" as const,
+      })),
+    )
+    .onConflictDoNothing({ target: holidays.date });
+  ensuredYears.add(year);
+  return list.length;
 }
 
+// 프로세스 수명 동안 확인이 끝난 연도 — 페이지마다 DB 왕복을 반복하지 않는다
+const ensuredYears = new Set<number>();
+
 /** 연도별 공휴일 캐시가 없으면 1회 자동 동기화 (실패해도 페이지는 살아 있어야 한다) */
-export async function ensurePublicHolidays(year: number): Promise<void> {
-  const existing = await db.query.holidays.findFirst({
-    where: and(
-      eq(holidays.source, "public"),
-      gte(holidays.date, `${year}-01-01`),
-      lte(holidays.date, `${year}-12-31`),
-    ),
-  });
-  if (existing) return;
-  try {
-    await syncPublicHolidays(year);
-  } catch (e) {
-    console.error(`공휴일 자동 동기화 실패 (${year}):`, e);
+export async function ensurePublicHolidays(years: number[]): Promise<void> {
+  const missing = [...new Set(years)].filter((y) => !ensuredYears.has(y));
+  if (missing.length === 0) return;
+
+  // 한 번의 쿼리로 모든 연도의 존재 여부 확인
+  const rows = await db
+    .selectDistinct({ year: sql<string>`extract(year from ${holidays.date})` })
+    .from(holidays)
+    .where(
+      and(
+        eq(holidays.source, "public"),
+        gte(holidays.date, `${Math.min(...missing)}-01-01`),
+        lte(holidays.date, `${Math.max(...missing)}-12-31`),
+      ),
+    );
+  const present = new Set(rows.map((r) => Number(r.year)));
+
+  for (const year of missing) {
+    if (present.has(year)) {
+      ensuredYears.add(year);
+      continue;
+    }
+    try {
+      await syncPublicHolidays(year);
+    } catch (e) {
+      console.error(`공휴일 자동 동기화 실패 (${year}):`, e);
+    }
   }
 }
 

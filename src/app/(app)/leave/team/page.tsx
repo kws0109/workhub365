@@ -1,4 +1,4 @@
-import { and, eq, inArray, ne, sql } from "drizzle-orm";
+import { and, eq, isNotNull, or, sql } from "drizzle-orm";
 import { db } from "@/db";
 import { leaveRequests, users } from "@/db/schema";
 import { requireSession } from "@/lib/auth-helpers";
@@ -10,41 +10,39 @@ export const metadata = { title: "팀 연차 현황" };
 export default async function TeamLeavePage() {
   const session = await requireSession();
 
-  const me = await db.query.users.findFirst({
-    where: eq(users.id, session.user.id),
-  });
+  // 부서 매칭을 서브쿼리로 흡수해 조인+집계까지 단일 왕복으로 처리
+  // (원격 DB는 왕복당 수백 ms — 순차 3쿼리였던 것을 1쿼리로)
+  const myDepartment = db
+    .select({ department: users.department })
+    .from(users)
+    .where(eq(users.id, session.user.id));
 
-  // 팀 연차는 역할 무관 같은 부서 구성원만 (부서 미지정이면 본인만)
-  const members = await db.query.users.findMany({
-    where: me?.department
-      ? eq(users.department, me.department)
-      : eq(users.id, session.user.id),
-  });
+  const memberRows = await db
+    .select({
+      id: users.id,
+      name: users.name,
+      department: users.department,
+      remaining: users.annualLeaveDays,
+      used: sql<string>`coalesce(sum(${leaveRequests.days}) filter (
+        where ${leaveRequests.status} = 'approved' and ${leaveRequests.type} <> 'sick'
+      ), 0)`,
+    })
+    .from(users)
+    .leftJoin(leaveRequests, eq(leaveRequests.userId, users.id))
+    .where(
+      or(
+        eq(users.id, session.user.id),
+        and(isNotNull(users.department), eq(users.department, sql`(${myDepartment})`)),
+      ),
+    )
+    .groupBy(users.id);
 
-  const memberIds = members.map((m) => m.id);
-  const usedRows =
-    memberIds.length > 0
-      ? await db
-          .select({
-            userId: leaveRequests.userId,
-            used: sql<string>`coalesce(sum(${leaveRequests.days}), 0)`,
-          })
-          .from(leaveRequests)
-          .where(
-            and(
-              eq(leaveRequests.status, "approved"),
-              ne(leaveRequests.type, "sick"),
-              inArray(leaveRequests.userId, memberIds),
-            ),
-          )
-          .groupBy(leaveRequests.userId)
-      : [];
-  const usedByUser = new Map(usedRows.map((r) => [r.userId, Number(r.used)]));
+  const me = memberRows.find((m) => m.id === session.user.id);
 
-  const rows = members
+  const rows = memberRows
     .map((m) => {
-      const remaining = Number(m.annualLeaveDays);
-      const used = usedByUser.get(m.id) ?? 0;
+      const remaining = Number(m.remaining);
+      const used = Number(m.used);
       return {
         id: m.id,
         name: m.name,

@@ -1,3 +1,4 @@
+import { cachedGraph } from "./cache";
 import { graphFetch, graphGetAll } from "./client";
 
 export type DirectoryUser = {
@@ -16,24 +17,29 @@ export type DirectoryGroup = {
 };
 
 export async function getDirectoryUsers(): Promise<DirectoryUser[]> {
-  return graphGetAll<DirectoryUser>(
-    "/users?$select=id,displayName,userPrincipalName,accountEnabled,department,jobTitle,assignedLicenses&$top=999",
+  return cachedGraph("graph:directory-users", 60_000, () =>
+    graphGetAll<DirectoryUser>(
+      "/users?$select=id,displayName,userPrincipalName,accountEnabled,department,jobTitle,assignedLicenses&$top=999",
+    ),
   );
 }
 
 export async function getGroups(): Promise<DirectoryGroup[]> {
-  return graphGetAll<DirectoryGroup>(
-    "/groups?$select=id,displayName&$top=999",
+  return cachedGraph("graph:groups", 60_000, () =>
+    graphGetAll<DirectoryGroup>("/groups?$select=id,displayName&$top=999"),
   );
 }
 
 export async function getDefaultDomain(): Promise<string> {
-  const domains = await graphGetAll<{ id: string; isDefault: boolean }>(
-    "/domains",
-  );
-  const def = domains.find((d) => d.isDefault);
-  if (!def) throw new Error("기본 도메인을 찾을 수 없습니다");
-  return def.id;
+  // 도메인은 사실상 불변 — 길게 캐시
+  return cachedGraph("graph:default-domain", 60 * 60_000, async () => {
+    const domains = await graphGetAll<{ id: string; isDefault: boolean }>(
+      "/domains",
+    );
+    const def = domains.find((d) => d.isDefault);
+    if (!def) throw new Error("기본 도메인을 찾을 수 없습니다");
+    return def.id;
+  });
 }
 
 export async function createUser(input: {
