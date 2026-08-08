@@ -72,6 +72,12 @@ User.ReadWrite.All, Organization.Read.All, Group.ReadWrite.All, Directory.Read.A
 - **회복 경로**: 결재자 퇴사 등으로 멈춘 기안은 관리자가 사유 필수 강제 반려 가능 (`proposal.force_reject` 감사 로그)
 - 백로그: 결재자 후보에서 비활성(오프보딩) 사용자 제외, 관리자 열람 감사 로그, 결재자 재지정
 
+### M7 포털 셸 (사이드바)
+- 사이드바는 클라이언트 컴포넌트 유지(usePathname 활성 표시). 미결 건수는 `(app)` 레이아웃(서버)에서 결재함과 동일 조건(내 차례 step=currentStep, pending, 기안 in_progress)으로 count 조회해 prop으로 전달 — 레이아웃과 페이지는 병렬 렌더링되므로 DB 왕복 1회가 페이지 로드 지연에 가산되지 않음
+- 배지 신선도: 레이아웃은 클라이언트 내비게이션 간 재렌더링되지 않으므로 배지는 스냅샷. 결재 서버 액션의 revalidatePath 덕에 액션 직후에는 일관되고, 외부 이벤트(타인의 상신)는 다음 하드 로드에 반영 — 의도된 트레이드오프. 정확한 실시간 숫자가 필요한 위젯은 매 방문 렌더링되는 홈 대시보드에만 둔다
+- 아이콘은 외부 라이브러리 없이 인라인 SVG(stroke 1.5, currentColor) — 의존성 최소화
+- M365 딥링크는 테넌트 무관 URL 상수(outlook.office.com/mail 등), `target="_blank" rel="noopener noreferrer"`. iframe 임베드 금지(R7 원칙)
+
 ## 오류 처리 원칙
 
 - Graph 호출은 얇은 래퍼로 감싸 429(throttle) 재시도(Retry-After 존중), 403은 "권한 부족: {필요 scope}"로 변환
