@@ -108,7 +108,7 @@ export default async function LeavePage({
         ).map((u) => u.id)
       : null; // null = 전체
 
-  const calendarRows = await db
+  const approvedRows = await db
     .select({
       startDate: leaveRequests.startDate,
       endDate: leaveRequests.endDate,
@@ -126,6 +126,27 @@ export default async function LeavePage({
       ),
     );
 
+  // 내 대기·1차 승인 신청도 캘린더에 표시 (점선 스타일) — 신청 직후 바로 보여야 한다
+  const myActiveRows = await db.query.leaveRequests.findMany({
+    where: and(
+      eq(leaveRequests.userId, session.user.id),
+      inArray(leaveRequests.status, ["pending", "approved_1"]),
+      lte(leaveRequests.startDate, monthEnd),
+      gte(leaveRequests.endDate, monthStart),
+    ),
+  });
+
+  const calendarEntries = [
+    ...approvedRows.map((r) => ({ ...r, status: "approved" as const })),
+    ...myActiveRows.map((r) => ({
+      startDate: r.startDate,
+      endDate: r.endDate,
+      type: r.type,
+      userName: me?.name ?? "나",
+      status: "pending" as const,
+    })),
+  ];
+
   const prevYm = m === 1 ? `${y - 1}-12` : `${y}-${String(m - 1).padStart(2, "0")}`;
   const nextYm = m === 12 ? `${y + 1}-01` : `${y}-${String(m + 1).padStart(2, "0")}`;
   const firstDow = new Date(`${monthStart}T00:00:00Z`).getUTCDay(); // 0=일
@@ -141,7 +162,7 @@ export default async function LeavePage({
           firstDow={firstDow}
           daysInMonth={daysInMonth}
           monthHolidays={monthHolidays.map((h) => ({ date: h.date, name: h.name }))}
-          entries={calendarRows}
+          entries={calendarEntries}
           holidayDates={formHolidays.map((h) => h.date)}
           remainingDays={Number(me?.annualLeaveDays ?? 0)}
           visibilityNote={

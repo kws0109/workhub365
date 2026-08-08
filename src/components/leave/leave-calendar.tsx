@@ -11,9 +11,40 @@ type CalendarEntry = {
   endDate: string;
   type: LeaveType;
   userName: string;
+  /** approved = 확정(실선), pending = 내 대기·1차 승인(점선) */
+  status: "approved" | "pending";
 };
 
 type HolidayItem = { date: string; name: string };
+
+const MAX_LANES = 3;
+
+/**
+ * 기간이 겹치는 휴가들에 세로 슬롯(레인)을 배정한다.
+ * 같은 휴가는 어느 날짜 셀에서든 같은 레인에 그려져 바가 끊기지 않는다
+ */
+function assignLanes(entries: CalendarEntry[]): number[] {
+  const order = entries
+    .map((e, i) => i)
+    .sort(
+      (a, b) =>
+        entries[a].startDate.localeCompare(entries[b].startDate) ||
+        entries[b].endDate.localeCompare(entries[a].endDate),
+    );
+  const laneEnd: string[] = [];
+  const laneOf = new Array<number>(entries.length).fill(0);
+  for (const i of order) {
+    let lane = laneEnd.findIndex((end) => end < entries[i].startDate);
+    if (lane === -1) {
+      lane = laneEnd.length;
+      laneEnd.push(entries[i].endDate);
+    } else {
+      laneEnd[lane] = entries[i].endDate;
+    }
+    laneOf[i] = lane;
+  }
+  return laneOf;
+}
 
 /**
  * 팀 캘린더 + 클릭 신청 모달.
@@ -51,6 +82,7 @@ export function LeaveCalendar({
     () => new Map(monthHolidays.map((h) => [h.date, h.name])),
     [monthHolidays],
   );
+  const laneOf = useMemo(() => assignLanes(entries), [entries]);
 
   return (
     <section className="rounded-xl border border-zinc-200 bg-white p-5">
@@ -67,7 +99,8 @@ export function LeaveCalendar({
         </div>
       </div>
       <p className="mt-1 text-xs text-zinc-400">
-        날짜를 클릭하면 휴가를 신청할 수 있습니다 (주말·휴일 제외)
+        날짜를 클릭하면 휴가를 신청할 수 있습니다 (주말·휴일 제외) · 점선은 결재
+        대기 중인 내 신청
         {visibilityNote && ` · ${visibilityNote}`}
       </p>
 
@@ -82,11 +115,21 @@ export function LeaveCalendar({
         ))}
         {Array.from({ length: daysInMonth }).map((_, i) => {
           const date = `${ym}-${String(i + 1).padStart(2, "0")}`;
+          const dow = (firstDow + i) % 7; // 0=일 … 6=토
           const holidayName = holidayByDate.get(date);
           const nonWorking = isNonWorkingDay(date, holidaySet);
-          const onLeave = entries.filter(
-            (r) => r.startDate <= date && date <= r.endDate,
+
+          const cellEntries = entries
+            .map((e, idx) => ({ ...e, lane: laneOf[idx] }))
+            .filter((e) => e.startDate <= date && date <= e.endDate);
+          const visible = cellEntries.filter((e) => e.lane < MAX_LANES);
+          const extra = cellEntries.length - visible.length;
+          const maxLane = visible.reduce((m, e) => Math.max(m, e.lane), -1);
+          // 레인 자리를 비워서라도 유지해야 바가 날짜를 넘어가며 세로로 정렬된다
+          const slots = Array.from({ length: maxLane + 1 }, (_, lane) =>
+            visible.find((e) => e.lane === lane) ?? null,
           );
+
           return (
             <button
               key={date}
@@ -106,18 +149,39 @@ export function LeaveCalendar({
                   {holidayName}
                 </p>
               )}
-              {onLeave.slice(0, 3).map((r, j) => (
-                <p
-                  key={j}
-                  className="mt-0.5 truncate rounded bg-emerald-50 px-1 text-emerald-700"
-                >
-                  {r.userName}
-                  {r.type === "half" && " (반차)"}
-                </p>
-              ))}
-              {onLeave.length > 3 && (
-                <p className="mt-0.5 text-zinc-400">+{onLeave.length - 3}</p>
-              )}
+              {slots.map((e, lane) => {
+                if (!e) {
+                  // 빈 레인 자리 지킴이 — 위 레인의 바가 어긋나지 않게 한다
+                  return <span key={lane} className="mt-0.5 block h-[18px]" />;
+                }
+                const contLeft = e.startDate < date && dow !== 0;
+                const contRight = e.endDate > date && dow !== 6;
+                const showLabel =
+                  e.startDate === date || dow === 0 || i === 0;
+                const style =
+                  e.status === "approved"
+                    ? "bg-emerald-100 text-emerald-700"
+                    : "border border-dashed border-amber-400 bg-amber-50 text-amber-700";
+                return (
+                  <span
+                    key={lane}
+                    className={`mt-0.5 block h-[18px] truncate px-1 text-[11px] leading-[16px] ${style} ${
+                      contLeft ? "-ml-[9px] rounded-l-none" : "rounded-l"
+                    } ${contRight ? "rounded-r-none" : "rounded-r"}`}
+                  >
+                    {showLabel ? (
+                      <>
+                        {e.userName}
+                        {e.type === "half" && " (반차)"}
+                        {e.status === "pending" && " (대기)"}
+                      </>
+                    ) : (
+                      " "
+                    )}
+                  </span>
+                );
+              })}
+              {extra > 0 && <p className="mt-0.5 text-zinc-400">+{extra}</p>}
             </button>
           );
         })}
