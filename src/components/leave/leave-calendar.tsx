@@ -134,6 +134,11 @@ export function LeaveCalendar({
             .map((e, idx) => ({ ...e, lane: laneOf[idx] }))
             .filter((e) => e.startDate <= date && date <= e.endDate);
           const isExpanded = expandedDates.has(date);
+          // 접었을 때 숨겨질 개수 기준으로 토글을 판단해야
+          // 펼친 뒤에도 접기 버튼이 유지된다 (항목 수 ≤ 상한이어도 레인 번호로 숨는 경우)
+          const hiddenWhenCollapsed = cellEntries.filter(
+            (e) => e.lane >= MAX_LANES,
+          ).length;
           const visible = isExpanded
             ? cellEntries
             : cellEntries.filter((e) => e.lane < MAX_LANES);
@@ -204,7 +209,7 @@ export function LeaveCalendar({
                 );
               })}
               {/* +n / 접기는 셀 클릭(신청 모달)과 분리된 토글 — 전파 차단 필수 */}
-              {(extra > 0 || (isExpanded && cellEntries.length > MAX_LANES)) && (
+              {(extra > 0 || (isExpanded && hiddenWhenCollapsed > 0)) && (
                 <button
                   type="button"
                   onClick={(e) => {
