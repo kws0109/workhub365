@@ -77,7 +77,18 @@ export function LeaveCalendar({
   action: (prev: ActionState, formData: FormData) => Promise<ActionState>;
 }) {
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
+  // +n을 눌러 펼친 셀들 — 펼치면 레인 상한 없이 전부 표시
+  const [expandedDates, setExpandedDates] = useState<Set<string>>(new Set());
   const holidaySet = useMemo(() => new Set(holidayDates), [holidayDates]);
+
+  function toggleExpanded(date: string) {
+    setExpandedDates((prev) => {
+      const next = new Set(prev);
+      if (next.has(date)) next.delete(date);
+      else next.add(date);
+      return next;
+    });
+  }
   const holidayByDate = useMemo(
     () => new Map(monthHolidays.map((h) => [h.date, h.name])),
     [monthHolidays],
@@ -122,7 +133,10 @@ export function LeaveCalendar({
           const cellEntries = entries
             .map((e, idx) => ({ ...e, lane: laneOf[idx] }))
             .filter((e) => e.startDate <= date && date <= e.endDate);
-          const visible = cellEntries.filter((e) => e.lane < MAX_LANES);
+          const isExpanded = expandedDates.has(date);
+          const visible = isExpanded
+            ? cellEntries
+            : cellEntries.filter((e) => e.lane < MAX_LANES);
           const extra = cellEntries.length - visible.length;
           const maxLane = visible.reduce((m, e) => Math.max(m, e.lane), -1);
           // 레인 자리를 비워서라도 유지해야 바가 날짜를 넘어가며 세로로 정렬된다
@@ -131,14 +145,12 @@ export function LeaveCalendar({
           );
 
           return (
-            <button
+            // +n 펼치기 버튼을 안에 품어야 해서 셀은 button이 아닌 클릭 가능한 div
+            // (버튼 중첩은 불가). 상단 정렬 flex 컬럼으로 레인 기준선을 통일한다
+            <div
               key={date}
-              type="button"
-              disabled={nonWorking}
-              onClick={() => setSelectedDate(date)}
+              onClick={nonWorking ? undefined : () => setSelectedDate(date)}
               title={nonWorking ? holidayName ?? "휴무일" : `${date} 휴가 신청`}
-              // 버튼은 기본적으로 콘텐츠를 세로 가운데 정렬한다 — 셀마다 바 개수가
-              // 다르면 이어지는 바가 어긋나므로 상단 정렬 flex 컬럼으로 강제
               className={`flex min-h-16 flex-col items-stretch justify-start p-1 text-left transition ${
                 holidayName || nonWorking ? "bg-red-50/60" : "bg-white"
               } ${nonWorking ? "cursor-not-allowed" : "cursor-pointer hover:bg-zinc-50"}`}
@@ -191,8 +203,20 @@ export function LeaveCalendar({
                   </span>
                 );
               })}
-              {extra > 0 && <p className="mt-0.5 text-zinc-400">+{extra}</p>}
-            </button>
+              {/* +n / 접기는 셀 클릭(신청 모달)과 분리된 토글 — 전파 차단 필수 */}
+              {(extra > 0 || (isExpanded && cellEntries.length > MAX_LANES)) && (
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    toggleExpanded(date);
+                  }}
+                  className="mt-0.5 self-start rounded px-1 text-zinc-500 hover:bg-zinc-200 hover:text-zinc-700"
+                >
+                  {isExpanded ? "접기" : `+${extra}`}
+                </button>
+              )}
+            </div>
           );
         })}
       </div>
