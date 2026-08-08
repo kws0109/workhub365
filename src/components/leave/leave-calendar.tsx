@@ -20,30 +20,37 @@ type HolidayItem = { date: string; name: string };
 const MAX_LANES = 4;
 
 /**
- * 기간이 겹치는 휴가들에 세로 슬롯(레인)을 배정한다.
- * 같은 휴가는 어느 날짜 셀에서든 같은 레인에 그려져 바가 끊기지 않는다
+ * 주(week) 단위 레인 배정. 바 표시/숨김과 펼치기가 모두 주 단위로 동작해야
+ * 여러 날에 걸친 휴가가 날짜에 따라 보였다 안 보였다 하며 끊기지 않는다.
+ * 반환: weekIdx → (entryIdx → lane)
  */
-function assignLanes(entries: CalendarEntry[]): number[] {
-  const order = entries
-    .map((e, i) => i)
-    .sort(
-      (a, b) =>
-        entries[a].startDate.localeCompare(entries[b].startDate) ||
-        entries[b].endDate.localeCompare(entries[a].endDate),
-    );
-  const laneEnd: string[] = [];
-  const laneOf = new Array<number>(entries.length).fill(0);
-  for (const i of order) {
-    let lane = laneEnd.findIndex((end) => end < entries[i].startDate);
-    if (lane === -1) {
-      lane = laneEnd.length;
-      laneEnd.push(entries[i].endDate);
-    } else {
-      laneEnd[lane] = entries[i].endDate;
+function assignLanesByWeek(
+  entries: CalendarEntry[],
+  weekRanges: { start: string; end: string }[],
+): Map<number, number>[] {
+  return weekRanges.map(({ start, end }) => {
+    const inWeek = entries
+      .map((e, i) => i)
+      .filter((i) => entries[i].startDate <= end && entries[i].endDate >= start)
+      .sort(
+        (a, b) =>
+          entries[a].startDate.localeCompare(entries[b].startDate) ||
+          entries[b].endDate.localeCompare(entries[a].endDate),
+      );
+    const laneEnd: string[] = [];
+    const laneOf = new Map<number, number>();
+    for (const i of inWeek) {
+      let lane = laneEnd.findIndex((e) => e < entries[i].startDate);
+      if (lane === -1) {
+        lane = laneEnd.length;
+        laneEnd.push(entries[i].endDate);
+      } else {
+        laneEnd[lane] = entries[i].endDate;
+      }
+      laneOf.set(i, lane);
     }
-    laneOf[i] = lane;
-  }
-  return laneOf;
+    return laneOf;
+  });
 }
 
 /**
@@ -77,23 +84,40 @@ export function LeaveCalendar({
   action: (prev: ActionState, formData: FormData) => Promise<ActionState>;
 }) {
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
-  // +n을 눌러 펼친 셀들 — 펼치면 레인 상한 없이 전부 표시
-  const [expandedDates, setExpandedDates] = useState<Set<string>>(new Set());
+  // +n을 눌러 펼친 주(week)들 — 주 전체가 함께 펼쳐져야 바가 날짜별로 끊기지 않는다
+  const [expandedWeeks, setExpandedWeeks] = useState<Set<number>>(new Set());
   const holidaySet = useMemo(() => new Set(holidayDates), [holidayDates]);
 
-  function toggleExpanded(date: string) {
-    setExpandedDates((prev) => {
+  function toggleExpanded(weekIdx: number) {
+    setExpandedWeeks((prev) => {
       const next = new Set(prev);
-      if (next.has(date)) next.delete(date);
-      else next.add(date);
+      if (next.has(weekIdx)) next.delete(weekIdx);
+      else next.add(weekIdx);
       return next;
     });
   }
+
+  const dateOf = (dayIdx: number) =>
+    `${ym}-${String(dayIdx + 1).padStart(2, "0")}`;
+
+  // 각 주가 커버하는 (월 내로 클램프된) 날짜 범위
+  const weekRanges = useMemo(() => {
+    const count = Math.ceil((firstDow + daysInMonth) / 7);
+    return Array.from({ length: count }, (_, w) => {
+      const startIdx = Math.max(0, w * 7 - firstDow);
+      const endIdx = Math.min(daysInMonth - 1, w * 7 - firstDow + 6);
+      return { start: dateOf(startIdx), end: dateOf(endIdx) };
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ym, firstDow, daysInMonth]);
   const holidayByDate = useMemo(
     () => new Map(monthHolidays.map((h) => [h.date, h.name])),
     [monthHolidays],
   );
-  const laneOf = useMemo(() => assignLanes(entries), [entries]);
+  const laneByWeek = useMemo(
+    () => assignLanesByWeek(entries, weekRanges),
+    [entries, weekRanges],
+  );
 
   return (
     <section className="rounded-xl border border-zinc-200 bg-white p-5">
@@ -130,10 +154,14 @@ export function LeaveCalendar({
           const holidayName = holidayByDate.get(date);
           const nonWorking = isNonWorkingDay(date, holidaySet);
 
+          const weekIdx = Math.floor((firstDow + i) / 7);
+          const weekLanes = laneByWeek[weekIdx] ?? new Map<number, number>();
           const cellEntries = entries
-            .map((e, idx) => ({ ...e, lane: laneOf[idx] }))
-            .filter((e) => e.startDate <= date && date <= e.endDate);
-          const isExpanded = expandedDates.has(date);
+            .map((e, idx) => ({ ...e, lane: weekLanes.get(idx) ?? -1 }))
+            .filter(
+              (e) => e.lane >= 0 && e.startDate <= date && date <= e.endDate,
+            );
+          const isExpanded = expandedWeeks.has(weekIdx);
           // 접었을 때 숨겨질 개수 기준으로 토글을 판단해야
           // 펼친 뒤에도 접기 버튼이 유지된다 (항목 수 ≤ 상한이어도 레인 번호로 숨는 경우)
           const hiddenWhenCollapsed = cellEntries.filter(
@@ -214,7 +242,7 @@ export function LeaveCalendar({
                   type="button"
                   onClick={(e) => {
                     e.stopPropagation();
-                    toggleExpanded(date);
+                    toggleExpanded(weekIdx);
                   }}
                   className="mt-0.5 self-start rounded px-1 text-zinc-500 hover:bg-zinc-200 hover:text-zinc-700"
                 >
