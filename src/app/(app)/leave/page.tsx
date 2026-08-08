@@ -15,8 +15,6 @@ import {
   resyncHolidays,
 } from "./actions";
 
-export const metadata = { title: "휴가" };
-
 const TYPE_LABEL = { annual: "연차", half: "반차", sick: "병가" } as const;
 const STATUS_META = {
   pending: { label: "대기", cls: "bg-amber-50 text-amber-700" },
@@ -133,11 +131,9 @@ export default async function LeavePage({
   const firstDow = new Date(`${monthStart}T00:00:00Z`).getUTCDay(); // 0=일
 
   return (
-    <div className="max-w-4xl">
-      <h1 className="text-2xl font-bold tracking-tight">휴가</h1>
-
+    <div>
       {/* 팀 캘린더 — 날짜 클릭으로 신청 (모달) */}
-      <div className="mt-6">
+      <div>
         <LeaveCalendar
           ym={ym}
           prevYm={prevYm}
