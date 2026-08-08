@@ -1,8 +1,6 @@
-import { and, count, eq } from "drizzle-orm";
 import { signOut } from "@/auth";
-import { db } from "@/db";
-import { proposalApprovers, proposals } from "@/db/schema";
 import { requireSession } from "@/lib/auth-helpers";
+import { countMyTurnProposals } from "@/lib/proposal-queries";
 import { Sidebar } from "@/components/sidebar";
 
 const ROLE_LABEL = {
@@ -19,20 +17,8 @@ export default async function AppLayout({
   const session = await requireSession();
   const { role, name } = { role: session.user.role, name: session.user.name };
 
-  // 기안 미결 배지 — 결재함(proposals/inbox)과 동일 조건의 count. 렌더 시점 스냅샷,
-  // 결재 액션의 revalidatePath로 갱신된다 (신선도 방침은 design.md M7)
-  const [{ value: pendingApprovals }] = await db
-    .select({ value: count() })
-    .from(proposalApprovers)
-    .innerJoin(proposals, eq(proposalApprovers.proposalId, proposals.id))
-    .where(
-      and(
-        eq(proposalApprovers.approverId, session.user.id),
-        eq(proposalApprovers.status, "pending"),
-        eq(proposals.status, "in_progress"),
-        eq(proposalApprovers.step, proposals.currentStep),
-      ),
-    );
+  // 기안 미결 배지 — 렌더 시점 스냅샷, 결재 액션의 revalidatePath로 갱신 (신선도 방침은 design.md M7)
+  const pendingApprovals = await countMyTurnProposals(session.user.id);
 
   return (
     <div className="flex min-h-screen">

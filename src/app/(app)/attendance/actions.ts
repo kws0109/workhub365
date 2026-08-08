@@ -43,6 +43,7 @@ export async function checkIn(
     return { error: "오늘은 이미 출근 체크되었습니다" };
   }
   revalidatePath("/attendance");
+  revalidatePath("/"); // 홈 대시보드 근무 카드 (R7.4)
   return { ok: true };
 }
 
@@ -78,5 +79,6 @@ export async function checkOut(
     return { error: "이미 퇴근 처리되었습니다" };
   }
   revalidatePath("/attendance");
+  revalidatePath("/"); // 홈 대시보드 근무 카드 (R7.4)
   return { ok: true };
 }

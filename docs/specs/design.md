@@ -77,6 +77,8 @@ User.ReadWrite.All, Organization.Read.All, Group.ReadWrite.All, Directory.Read.A
 - 배지 신선도: 레이아웃은 클라이언트 내비게이션 간 재렌더링되지 않으므로 배지는 스냅샷. 결재 서버 액션의 revalidatePath 덕에 액션 직후에는 일관되고, 외부 이벤트(타인의 상신)는 다음 하드 로드에 반영 — 의도된 트레이드오프. 정확한 실시간 숫자가 필요한 위젯은 매 방문 렌더링되는 홈 대시보드에만 둔다
 - 아이콘은 외부 라이브러리 없이 인라인 SVG(stroke 1.5, currentColor) — 의존성 최소화
 - M365 딥링크는 테넌트 무관 URL 상수(outlook.office.com/mail 등), `target="_blank" rel="noopener noreferrer"`. iframe 임베드 금지(R7 원칙)
+- 홈 대시보드(R7.4): 위젯 데이터는 단일 병렬 스테이지(Promise.all), 미결 건수는 `countMyTurnProposals`(src/lib/proposal-queries.ts, React cache로 레이아웃과 요청당 1회 공유). admin 위젯(낭비 KPI+감사 로그)은 Graph 호출이 느릴 수 있어 Suspense로 스트리밍하고, Graph 실패 시 해당 위젯만 오류 강등(페이지 전체를 죽이지 않음). 출퇴근 액션은 근태 화면과 동일 서버 액션 재사용 + `revalidatePath("/")` 추가
+- M365 위젯(안읽은 메일·오늘 일정) 전제조건: 위임 스코프 `Mail.Read`·`Calendars.Read` 추가 + 액세스 토큰 세션 보관·갱신(`offline_access`) + 재로그인 동의 필요 — 현재 SSO는 User.Read만이라 미구현. app-only 토큰으로 개인 메일을 읽는 것은 인증 2층 원칙 위반이므로 금지
 
 ## 오류 처리 원칙
 
