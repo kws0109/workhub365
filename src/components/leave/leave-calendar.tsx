@@ -137,7 +137,9 @@ export function LeaveCalendar({
               disabled={nonWorking}
               onClick={() => setSelectedDate(date)}
               title={nonWorking ? holidayName ?? "휴무일" : `${date} 휴가 신청`}
-              className={`min-h-16 p-1 text-left align-top transition ${
+              // 버튼은 기본적으로 콘텐츠를 세로 가운데 정렬한다 — 셀마다 바 개수가
+              // 다르면 이어지는 바가 어긋나므로 상단 정렬 flex 컬럼으로 강제
+              className={`flex min-h-16 flex-col items-stretch justify-start p-1 text-left transition ${
                 holidayName || nonWorking ? "bg-red-50/60" : "bg-white"
               } ${nonWorking ? "cursor-not-allowed" : "cursor-pointer hover:bg-zinc-50"}`}
             >
