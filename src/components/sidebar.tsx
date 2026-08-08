@@ -8,6 +8,7 @@ type Role = "admin" | "manager" | "employee";
 const MENU: { href: string; label: string; roles: Role[] }[] = [
   { href: "/", label: "대시보드", roles: ["admin", "manager", "employee"] },
   { href: "/leave", label: "휴가", roles: ["admin", "manager", "employee"] },
+  { href: "/proposals", label: "기안", roles: ["admin", "manager", "employee"] },
   { href: "/attendance", label: "근태", roles: ["admin", "manager", "employee"] },
   { href: "/licenses", label: "라이선스", roles: ["admin"] },
   { href: "/lifecycle", label: "온보딩/오프보딩", roles: ["admin"] },
