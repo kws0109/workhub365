@@ -1,14 +1,73 @@
 @import "tailwindcss";
 
-/* 현재 라이트 테마 단일 지원. 다크모드는 백로그 —
-   스캐폴드 기본 prefers-color-scheme 오버라이드는 레이어 밖 CSS라
-   Tailwind 유틸리티(bg-zinc-50 등)를 이겨버려 제거했다 */
+/* 디자인 시스템 단일 소스 (design.md "디자인 시스템" 절, 목업 추출값).
+   라이트 단일·무섀도 — 깊이는 보더+배경 대비로만. 그레이는 Tailwind zinc와
+   동일하므로 시맨틱 별칭 + 브랜드 토큰만 정의한다 */
 
 @theme inline {
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
 }
 
+@theme {
+  /* 시맨틱 뉴트럴 (zinc 별칭) */
+  --color-canvas: #fafafa; /* 페이지 배경 */
+  --color-surface: #ffffff; /* 카드·사이드바 */
+  --color-fill: #f4f4f5; /* 옅은 채움·트랙·아바타 */
+  --color-line: #e4e4e7; /* 기본 보더 */
+  --color-line-strong: #d4d4d8; /* 버튼 보더 */
+  --color-ink: #18181b; /* 기본 텍스트 = 포인트 */
+  --color-ink-body: #3f3f46; /* 긴 본문 */
+  --color-ink-sub: #52525b; /* 비활성 메뉴 */
+  --color-ink-secondary: #71717a; /* 보조 */
+  --color-ink-muted: #a1a1aa; /* 캡션·placeholder */
+
+  /* M365 브랜드 점 (출처 칩) */
+  --color-brand-outlook: #0f6cbd;
+  --color-brand-teams: #6264a7;
+  --color-brand-onedrive: #0364b8;
+  --color-brand-graph: #0078d4;
+  --color-brand-ai: #d97706;
+
+  /* 파일타입 미니 아이콘 */
+  --color-file-doc: #2b579a;
+  --color-file-ppt: #d24726;
+  --color-file-xls: #217346;
+  --color-file-pdf: #b91c1c;
+
+  /* 프레즌스 */
+  --color-presence-online: #10b981;
+  --color-presence-away: #f59e0b;
+  --color-presence-busy: #ef4444;
+  --color-presence-offline: #a1a1aa;
+
+  /* 레이아웃·라운드 */
+  --spacing-sidebar: 224px;
+  --radius-card: 12px;
+}
+
 body {
-  font-family: var(--font-geist-sans), system-ui, sans-serif;
+  font-family:
+    var(--font-geist-sans),
+    -apple-system,
+    BlinkMacSystemFont,
+    "Apple SD Gothic Neo",
+    "Malgun Gothic",
+    "Segoe UI",
+    sans-serif;
+  /* 목업 규격: 숫자는 전부 tabular */
+  font-variant-numeric: tabular-nums;
+}
+
+/* 목업 규격 스크롤바 (WebKit) */
+::-webkit-scrollbar {
+  width: 10px;
+}
+::-webkit-scrollbar-thumb {
+  background: #d4d4d8;
+  border-radius: 5px;
+  border: 2px solid #fafafa;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
 }
