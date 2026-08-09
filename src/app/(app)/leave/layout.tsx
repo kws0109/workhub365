@@ -1,4 +1,4 @@
-import { LeaveTabs } from "@/components/leave/leave-tabs";
+import { AttendanceLeaveTabs } from "@/components/attendance-leave-tabs";
 
 export const metadata = { title: "휴가" };
 
@@ -9,8 +9,8 @@ export default function LeaveLayout({
 }) {
   return (
     <div className="max-w-4xl">
-      <h1 className="text-2xl font-bold tracking-tight">휴가</h1>
-      <LeaveTabs />
+      <h1 className="text-2xl font-bold tracking-tight">근태·휴가</h1>
+      <AttendanceLeaveTabs />
       <div className="mt-6">{children}</div>
     </div>
   );

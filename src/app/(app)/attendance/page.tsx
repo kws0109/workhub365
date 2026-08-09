@@ -12,6 +12,7 @@ import {
 } from "@/lib/attendance";
 import { formatMinutes, formatTimeKst } from "@/lib/format";
 import { ActionForm } from "@/components/action-form";
+import { AttendanceLeaveTabs } from "@/components/attendance-leave-tabs";
 import { checkIn, checkOut } from "./actions";
 
 export const metadata = { title: "근태" };
@@ -86,7 +87,8 @@ export default async function AttendancePage() {
 
   return (
     <div className="max-w-3xl">
-      <h1 className="text-2xl font-bold tracking-tight">근태</h1>
+      <h1 className="text-2xl font-bold tracking-tight">근태·휴가</h1>
+      <AttendanceLeaveTabs />
 
       <section className="mt-6 rounded-xl border border-zinc-200 bg-white p-5">
         <div className="flex items-center justify-between">

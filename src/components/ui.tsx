@@ -1,3 +1,4 @@
+import Link from "next/link";
 import type { ReactNode } from "react";
 
 // 디자인 시스템 공용 컴포넌트 (design.md "디자인 시스템" 절, 목업 규격).
@@ -194,6 +195,30 @@ export function FileTypeIcon({ ext, size = 20 }: { ext: string; size?: number })
     >
       {key.replace("x", "").slice(0, 3).toUpperCase()}
     </span>
+  );
+}
+
+/** 필터 탭 클래스 — 활성 ink 필, 비활성 hover fill (목업 규격: radius 8 · 6×12px · 13px/500) */
+export function tabClass(active: boolean): string {
+  return `rounded-lg px-3 py-1.5 text-[13px] font-medium transition ${
+    active ? "bg-ink text-white" : "text-ink-sub hover:bg-fill"
+  }`;
+}
+
+/** 라우트·쿼리 전환형 탭 (세그먼트) — 클라이언트 상태 탭은 tabClass를 직접 사용 */
+export function TabLink({
+  href,
+  active,
+  children,
+}: {
+  href: string;
+  active: boolean;
+  children: ReactNode;
+}) {
+  return (
+    <Link href={href} aria-current={active ? "page" : undefined} className={tabClass(active)}>
+      {children}
+    </Link>
   );
 }
 
