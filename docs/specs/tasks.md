@@ -98,4 +98,4 @@ Phase 단위로 브랜치 → PR. 완료 시 체크.
 - [x] README(아키텍처 다이어그램, 의사결정, 한계, 데모) — mermaid 2종(시스템 구성·승인 게이트 시퀀스), 의사결정 표, CI 배지
 - [x] Wiki: Home / Architecture / Development-Log / Setup-Guide / Roadmap — Phase 5까지 현행화(Architecture mermaid·결정 6종)
 - [x] Vercel 프로덕션 배포 + 환경변수 — https://workhub365-five.vercel.app 배포·실검증 완료(SSO 로그인, 홈 위젯 실값·위임 메일 위젯, 라이선스 Graph 실데이터, 어시스턴트 승인→실행, 감사 로그). AUTH_URL localhost 함정은 deploy.md에 기록
-- [ ] 데모 시나리오 대본 + 영상 — 대본 완료([docs/demo-script.md](../demo-script.md), 장면 7개), 영상 녹화 남음
+- [ ] 데모 시나리오 대본 + 영상 — 대본 완료([docs/demo-script.md](../demo-script.md), 장면 8개), 화면 캡처([docs/screenshot-guide.md](../screenshot-guide.md))와 영상 녹화 남음 — 둘 다 E3 평가판 만료 전에
