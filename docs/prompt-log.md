@@ -107,3 +107,11 @@ AI 페어 프로그래밍으로 구현한 작업마다 **[근거 스펙 + 실행
 - **구현 요지**: ① `approval_requests` 보강 — `executing` 클레임 상태·멱등 키(tool_use id)·만료 15분 ② `packages/mcp-server` — 도구 10종(조회 5/변경 5) 단일 소스 + `executeTool` 게이트 + stdio MCP 서버(변경형은 승인 안내만) ③ `/api/assistant` — Claude tool use 루프(NDJSON 스트리밍, 원본 블록 왕복) ④ 승인 카드 — 서버 액션이 pending→executing CAS 클레임 후 실행(실행-정확히-1회), 임시 비밀번호는 DB 미저장 1회 표시 ⑤ 게이트 시나리오 테스트 31개. 구현 결정·트레이드오프는 design.md M5 절에 추가 기록
 - **검증**: Vitest 96개·lint·build 클린, MCP stdio JSON-RPC(initialize→tools/list) 실검증, 실브라우저 E2E — 라이선스 낭비 조회(실테넌트 ₩ 집계)·find_users→get_user_detail 체인·52시간 조회·세션 철회 승인→Graph 실행·라이선스 회수 거부·감사 로그 4종(actorType assistant). 2-렌즈 병렬 리뷰 19건 지적 → 반박 검증 → 고유 결함 13건 전부 수정(이력 tool_use 롤백, create_user 부분 실패 허용, 기록 실패 재시도, 스트림 중 승인 차단 등)
 - **결과 커밋**: `d8f7ae0` MCP 패키지+게이트 코어, `51e7671` tool use 루프+승인 카드
+
+## 2026-08-09 — Phase 6: CI·README·Wiki·배포 준비·데모 대본
+
+- **근거 스펙**: [tasks.md](specs/tasks.md) Phase 6, handoff "Phase 6 착수 시 알아야 할 것"
+- **실행 프롬프트 (원문)**: "Phase 6 진행"
+- **구현 요지**: ① GitHub Actions CI(lint+Vitest+build) — `.env.local` 제거 빌드로 시크릿 불필요를 사전 검증 후 작성, 첫 실행 전 단계 통과 ② README 전면 보강 — CI 배지, mermaid 다이어그램 2종(시스템 구성·승인 게이트 시퀀스), 주요 의사결정 표(이유 포함), 기능 표 현행화 ③ Wiki 4페이지 현행화(Roadmap 상태, Architecture mermaid·설계 결정 6종) ④ docs/deploy.md — Vercel 임포트·환경변수·리디렉션 URI·체크리스트 ⑤ docs/demo-script.md — 장면 7개(보여줄 것/말할 것)
+- **범위 판단**: Vercel 배포 실행과 데모 영상 녹화는 사용자 계정·화면 녹화가 필요해 준비물(가이드·대본)까지만 — 나머지는 사용자 액션으로 handoff에 명시
+- **결과 커밋**: `ea88035` CI+README+deploy+demo-script, 이후 docs 마감 커밋. Wiki `ecc0412`

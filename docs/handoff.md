@@ -1,4 +1,4 @@
-# Handoff — 세션 인수인계 (2026-08-09 Phase 5 완료 기준)
+# Handoff — 세션 인수인계 (2026-08-09 Phase 6 문서·CI 완료 기준)
 
 새 세션은 이 문서 + [CLAUDE.md](../CLAUDE.md) + [docs/specs/tasks.md](specs/tasks.md)를 읽고 이어서 작업한다. 각 작업의 근거 스펙과 실행 프롬프트는 [docs/prompt-log.md](prompt-log.md)에 기록한다 (새 작업도 같은 형식으로 기록할 것).
 
@@ -10,14 +10,15 @@
   - 다중 사용자 동시성 강화 (EXCLUDE 제약, 풀 하드닝, after() 등) + 성능 최적화 (쿼리 병렬화, Graph TTL 캐시, jwt 스로틀)
   - M7 포털 셸 (2026-08-09): 사이드바 섹션 그룹핑+아이콘+기안 미결 배지+M365 딥링크 런처(R7.1~R7.3), 홈 대시보드 위젯 그리드(R7.4 — 근무 카드·타일 3종·내 기안·admin 낭비 KPI/감사 로그 + M365 위젯: 안읽은 메일·오늘 일정, 위임 토큰 서버 전용 처리)
   - Phase 5 / M5 AI 어시스턴트 (2026-08-09): `packages/mcp-server` 도구 10종(단일 소스, stdio 서버 겸용) + `/api/assistant` tool use 루프(NDJSON) + 승인 카드(pending→executing CAS 클레임, 멱등 키, 만료 15분) + 게이트 시나리오 테스트. 실브라우저 E2E: 조회 3종·승인→Graph 실행·거부·감사 로그 4종. 구현 결정·트레이드오프는 design.md M5 절에 기록
-- **남은 것**: M7 후속(모바일 드로어), Phase 6 (CI, README 정리, Vercel 배포, 데모), M3 스트레치(승인 시 Outlook 이벤트)
-- 검증 상태: Vitest 96개 통과, lint/build 클린, MCP stdio JSON-RPC 실검증
+  - Phase 6 문서·CI (2026-08-09): GitHub Actions CI(lint+test+build, 시크릿 불필요 — 첫 실행 통과), README 전면 보강(mermaid 2종·의사결정 표·CI 배지), Wiki 현행화, docs/deploy.md(Vercel 절차), docs/demo-script.md(장면 7개 대본)
+- **남은 것 (사용자 액션 필요)**: ① Vercel 배포 — vercel.com/new에서 리포 임포트 + 환경변수 등록 + Entra 리디렉션 URI 추가(절차 전부 docs/deploy.md) ② 데모 영상 녹화(대본 docs/demo-script.md) — E3 평가판 만료(8월 말경) 전에! ③ (선택) M7 모바일 드로어, M3 스트레치
+- 검증 상태: Vitest 96개 통과, lint/build 클린, CI 녹색, MCP stdio JSON-RPC 실검증
 
-## Phase 6 착수 시 알아야 할 것
+## 남은 작업 착수 시 알아야 할 것
 
-- Vercel 배포 시 환경변수에 `ANTHROPIC_API_KEY`·`ASSISTANT_MODEL` 추가 필요. `/api/assistant`는 `maxDuration 180` — Vercel 기본 300 안이라 문제 없음
+- Vercel: 시크릿 없이 빌드 통과 확인됨(.env.local 제거 빌드로 검증) — 임포트만 하면 빌드는 성공, 기능은 환경변수 등록 후. `/api/assistant` `maxDuration 180`은 기본 한도(300) 안
 - MCP stdio 독립 실행: `npm run mcp:stdio` — tsx가 `--conditions=react-server`로 `server-only`를 우회한다(플래그 제거하면 즉시 깨짐)
-- 어시스턴트 E2E 재검증 시: 데모 계정 세션 철회(`revoke_user_sessions`)가 무해해서 승인 플로 테스트에 적합. 오하린(fin2) 세션은 이번 검증에서 이미 철회됨
+- 어시스턴트 E2E 재검증 시: 데모 계정 세션 철회(`revoke_user_sessions`)가 무해해서 승인 플로 테스트에 적합. 오하린(fin2) 세션은 Phase 5 검증에서 이미 철회됨
 - 2-렌즈 리뷰에서 수용한 잔여 한계(수정 안 함): 대화 이력 80메시지 초과 시 '새 대화' 안내로 해소(자동 트리밍 없음), executing 잔류 행 수동 정리(리퍼 없음 — design.md M5 트레이드오프 참조)
 
 ## 환경·운영 정보

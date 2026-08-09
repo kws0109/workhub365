@@ -56,8 +56,8 @@ Phase 단위로 브랜치 → PR. 완료 시 체크.
 - [x] 승인 게이트 시나리오 테스트 — 변경형 전체 approval_required, 조회형 부수효과 전무, R5.3 커버리지 (테스트 31개 추가, 총 96개)
 
 ## Phase 6 — 마무리
-- [ ] GitHub Actions CI(lint + test + build)
-- [ ] README(아키텍처 다이어그램, 의사결정, 한계, 데모)
-- [ ] Wiki: Home / Architecture / Development-Log / Setup-Guide / Roadmap
-- [ ] Vercel 프로덕션 배포 + 환경변수
-- [ ] 데모 시나리오 대본 + 영상
+- [x] GitHub Actions CI(lint + test + build) — 시크릿 불필요(.env 없는 빌드 사전 검증), 첫 실행 전 단계 통과
+- [x] README(아키텍처 다이어그램, 의사결정, 한계, 데모) — mermaid 2종(시스템 구성·승인 게이트 시퀀스), 의사결정 표, CI 배지
+- [x] Wiki: Home / Architecture / Development-Log / Setup-Guide / Roadmap — Phase 5까지 현행화(Architecture mermaid·결정 6종)
+- [ ] Vercel 프로덕션 배포 + 환경변수 — 준비 완료([docs/deploy.md](../deploy.md): 절차·환경변수 표·리디렉션 URI). 계정 로그인·리포 임포트는 사용자 액션
+- [ ] 데모 시나리오 대본 + 영상 — 대본 완료([docs/demo-script.md](../demo-script.md), 장면 7개), 영상 녹화 남음
