@@ -26,6 +26,21 @@ export function formatTimeKst(d: Date | null): string {
   });
 }
 
+const BYTE_UNITS = ["B", "KB", "MB", "GB", "TB"] as const;
+
+/** 파일 크기 — 1024 진법, 소수 1자리(정수로 떨어지면 생략). null은 "—" (폴더 등) */
+export function formatBytes(bytes: number | null | undefined): string {
+  if (bytes == null || !Number.isFinite(bytes) || bytes < 0) return "—";
+  let value = bytes;
+  let unit = 0;
+  while (value >= 1024 && unit < BYTE_UNITS.length - 1) {
+    value /= 1024;
+    unit += 1;
+  }
+  const text = unit === 0 ? String(value) : value.toFixed(1).replace(/\.0$/, "");
+  return `${text}${BYTE_UNITS[unit]}`;
+}
+
 export function formatDateTimeKst(d: Date | null): string {
   if (!d) return "—";
   return d.toLocaleString("ko-KR", {
