@@ -154,7 +154,11 @@ export async function decideLeave(
         if (conflict) throw new Error("겹치는 승인 건이 이미 존재합니다");
       }
 
-      // 낙관적 가드: 상태가 그대로일 때만 전이 — 동시 결재의 이중 처리 차단
+      // 낙관적 가드: 읽은 스냅샷 그대로일 때만 전이 — 동시 결재의 이중 처리 차단.
+      // type·days까지 거는 이유: 인사 정정(R3.9)이 결재 중에 유형·일수를 바꾸면
+      // 옛 값으로 차감하고 행에는 새 값이 남아 "총 연차 = 잔여 + 승인 사용분"이 깨진다.
+      // req.days는 numeric이라 드라이버가 문자열로 준다 — Number()로 감싸면
+      // 타입 불일치로 항상 0행이 되어 모든 결재가 실패한다 (원본 그대로 비교할 것)
       const updated = await tx
         .update(leaveRequests)
         .set({
@@ -164,11 +168,16 @@ export async function decideLeave(
           decidedAt: new Date(),
         })
         .where(
-          and(eq(leaveRequests.id, requestId), eq(leaveRequests.status, req.status)),
+          and(
+            eq(leaveRequests.id, requestId),
+            eq(leaveRequests.status, req.status),
+            eq(leaveRequests.type, req.type),
+            eq(leaveRequests.days, req.days),
+          ),
         )
         .returning({ id: leaveRequests.id });
       if (updated.length === 0) {
-        throw new Error("이미 다른 결재자가 처리했습니다");
+        throw new Error("신청이 이미 처리되었거나 내용이 변경되었습니다");
       }
 
       if (result.deductDays > 0) {

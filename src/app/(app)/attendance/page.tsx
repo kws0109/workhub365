@@ -12,7 +12,6 @@ import {
 } from "@/lib/attendance";
 import { formatMinutes, formatTimeKst } from "@/lib/format";
 import { ActionForm } from "@/components/action-form";
-import { AttendanceLeaveTabs } from "@/components/attendance-leave-tabs";
 import { checkIn, checkOut } from "./actions";
 
 export const metadata = { title: "근태" };
@@ -85,12 +84,10 @@ export default async function AttendancePage() {
     teamTotals.set(r.userId, cur);
   }
 
+  // h1·탭 바는 attendance/layout.tsx가 렌더한다 (첫 섹션 상단 여백도 layout의 mt-6이 담당)
   return (
-    <div className="max-w-3xl">
-      <h1 className="text-2xl font-bold tracking-tight">근태·휴가</h1>
-      <AttendanceLeaveTabs />
-
-      <section className="mt-6 rounded-xl border border-zinc-200 bg-white p-5">
+    <>
+      <section className="rounded-xl border border-zinc-200 bg-white p-5">
         <div className="flex items-center justify-between">
           <div>
             <h2 className="font-semibold">오늘 ({today})</h2>
@@ -212,7 +209,7 @@ export default async function AttendancePage() {
           </table>
         </section>
       )}
-    </div>
+    </>
   );
 }
 
