@@ -9,10 +9,13 @@ import type { ActionState } from "@/components/action-form";
 import { getHolidaySet, syncPublicHolidays } from "@/lib/holidays";
 import {
   countLeaveDays,
+  leaveSpanDays,
   transitionLeave,
+  MAX_LEAVE_SPAN_DAYS,
   type LeaveAction,
   type LeaveType,
 } from "@/lib/leave";
+import { actionErrorMessage, isUuid } from "@/lib/validate";
 
 const LEAVE_TYPES: LeaveType[] = ["annual", "half", "sick"];
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
@@ -32,6 +35,17 @@ export async function createLeave(
 
   if (!LEAVE_TYPES.includes(type) || !DATE_RE.test(startDate) || !DATE_RE.test(endDate)) {
     return { error: "입력이 올바르지 않습니다" };
+  }
+
+  // 기간 상한은 getHolidaySet·countLeaveDays '앞'에 둔다.
+  // DATE_RE는 형식만 보므로 9999-12-31이 그대로 통과해 일별 루프가 290만 회 돌고,
+  // 실질 상한이던 잔여 연차 가드는 루프 '뒤'에 있어 방어가 되지 않았다
+  const span = leaveSpanDays(startDate, endDate);
+  if (!Number.isFinite(span)) {
+    return { error: "입력이 올바르지 않습니다" };
+  }
+  if (span > MAX_LEAVE_SPAN_DAYS) {
+    return { error: "휴가 기간이 너무 깁니다" };
   }
 
   const holidaySet = await getHolidaySet(startDate, endDate);
@@ -60,6 +74,12 @@ export async function createLeave(
     return { error: "해당 기간과 겹치는 신청이 이미 있습니다" };
   }
 
+  // 일수 절대 상한은 유형 분기 '밖'에 둔다 — 병가는 잔여 연차 가드를 타지 않으므로
+  // 아래 블록 안에 두면 병가만 상한 없이 통과해 numeric(4,1) 오버플로(22003)로 샌다
+  if (days > MAX_LEAVE_SPAN_DAYS) {
+    return { error: "휴가 기간이 너무 깁니다" };
+  }
+
   if (type !== "sick") {
     const me = await db.query.users.findFirst({
       where: eq(users.id, session.user.id),
@@ -79,9 +99,15 @@ export async function createLeave(
       reason,
     });
   } catch (e) {
+    const code = (e as { code?: string })?.code;
     // 23P01 = exclusion_violation — 동시 제출로 겹침이 생긴 경우
-    if ((e as { code?: string })?.code === "23P01") {
+    if (code === "23P01") {
       return { error: "해당 기간과 겹치는 신청이 이미 있습니다" };
+    }
+    // 23514 = check_violation(leave_days_range), 22003 = numeric_value_out_of_range.
+    // 앱 상한을 통과했는데 여기 닿았다면 DB 방어선이 잡은 것 — 오류 경계 대신 인라인 오류로
+    if (code === "23514" || code === "22003") {
+      return { error: "휴가 기간이 너무 깁니다" };
     }
     throw e;
   }
@@ -99,7 +125,8 @@ export async function decideLeave(
   const rejectReason =
     String(formData.get("rejectReason") ?? "").slice(0, 500) || null;
 
-  if (!requestId || (action !== "approve" && action !== "reject")) {
+  // uuid 형태 사전 검증 — 위조 값이 raw Postgres 캐스팅 오류로 새지 않게
+  if (!isUuid(requestId) || (action !== "approve" && action !== "reject")) {
     return { error: "입력이 올바르지 않습니다" };
   }
   if (action === "reject" && !rejectReason) {
@@ -213,7 +240,8 @@ export async function decideLeave(
       });
     });
   } catch (e) {
-    return { error: e instanceof Error ? e.message : "처리에 실패했습니다" };
+    // 앱이 던진 메시지("신청을 찾을 수 없습니다")는 그대로, 드라이버 오류 원문은 접는다
+    return { error: actionErrorMessage(e, "처리에 실패했습니다") };
   }
 
   revalidatePath("/leave");
@@ -226,32 +254,44 @@ export async function cancelLeave(
 ): Promise<ActionState> {
   const session = await assertRole("admin", "manager", "employee");
   const requestId = String(formData.get("requestId") ?? "");
-  if (!requestId) return { error: "입력이 올바르지 않습니다" };
+  // uuid 형태 사전 검증 — 위조 값이 raw Postgres 캐스팅 오류로 새지 않게
+  if (!isUuid(requestId)) return { error: "입력이 올바르지 않습니다" };
 
-  const req = await db.query.leaveRequests.findFirst({
-    where: eq(leaveRequests.id, requestId),
-  });
-  if (!req) return { error: "신청을 찾을 수 없습니다" };
+  // try/catch가 없으면 DB 오류가 서버 액션 밖으로 던져져 화면이 오류 경계로 떨어진다
+  try {
+    const req = await db.query.leaveRequests.findFirst({
+      where: eq(leaveRequests.id, requestId),
+    });
+    if (!req) return { error: "신청을 찾을 수 없습니다" };
 
-  const result = transitionLeave(
-    {
-      userId: req.userId,
-      type: req.type,
-      status: req.status,
-      days: Number(req.days),
-      approverId: req.approverId,
-    },
-    "cancel",
-    { id: session.user.id, role: session.user.role },
-  );
-  if (!result.ok) return { error: result.reason };
+    const result = transitionLeave(
+      {
+        userId: req.userId,
+        type: req.type,
+        status: req.status,
+        days: Number(req.days),
+        approverId: req.approverId,
+      },
+      "cancel",
+      { id: session.user.id, role: session.user.role },
+    );
+    if (!result.ok) return { error: result.reason };
 
-  const updated = await db
-    .update(leaveRequests)
-    .set({ status: "cancelled", decidedAt: new Date() })
-    .where(and(eq(leaveRequests.id, requestId), eq(leaveRequests.status, "pending")))
-    .returning({ id: leaveRequests.id });
-  if (updated.length === 0) return { error: "이미 처리된 신청입니다" };
+    const updated = await db
+      .update(leaveRequests)
+      .set({ status: "cancelled", decidedAt: new Date() })
+      .where(
+        and(
+          eq(leaveRequests.id, requestId),
+          eq(leaveRequests.status, "pending"),
+        ),
+      )
+      .returning({ id: leaveRequests.id });
+    if (updated.length === 0) return { error: "이미 처리된 신청입니다" };
+  } catch (e) {
+    console.error("cancelLeave 실패:", e);
+    return { error: actionErrorMessage(e, "취소에 실패했습니다") };
+  }
 
   revalidatePath("/leave");
   return { ok: true };
@@ -298,23 +338,30 @@ export async function deleteHoliday(
 ): Promise<ActionState> {
   const session = await assertRole("admin");
   const id = String(formData.get("id") ?? "");
-  if (!id) return { error: "입력이 올바르지 않습니다" };
+  // uuid 형태 사전 검증 — 위조 값이 raw Postgres 캐스팅 오류로 새지 않게
+  if (!isUuid(id)) return { error: "입력이 올바르지 않습니다" };
 
-  const deleted = await db
-    .delete(holidays)
-    .where(eq(holidays.id, id))
-    .returning({ date: holidays.date, name: holidays.name });
-  if (deleted.length === 0) return { error: "휴일을 찾을 수 없습니다" };
+  // try/catch가 없으면 DB 오류가 서버 액션 밖으로 던져져 화면이 오류 경계로 떨어진다
+  try {
+    const deleted = await db
+      .delete(holidays)
+      .where(eq(holidays.id, id))
+      .returning({ date: holidays.date, name: holidays.name });
+    if (deleted.length === 0) return { error: "휴일을 찾을 수 없습니다" };
 
-  await db.insert(auditLogs).values({
-    actorId: session.user.id,
-    actorType: "user",
-    action: "holiday.delete",
-    targetType: "holiday",
-    targetId: deleted[0].date,
-    detail: { name: deleted[0].name },
-    success: true,
-  });
+    await db.insert(auditLogs).values({
+      actorId: session.user.id,
+      actorType: "user",
+      action: "holiday.delete",
+      targetType: "holiday",
+      targetId: deleted[0].date,
+      detail: { name: deleted[0].name },
+      success: true,
+    });
+  } catch (e) {
+    console.error("deleteHoliday 실패:", e);
+    return { error: actionErrorMessage(e, "삭제에 실패했습니다") };
+  }
   revalidatePath("/leave");
   return { ok: true };
 }

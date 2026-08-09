@@ -103,6 +103,23 @@ function dayOfWeekKst(dateStr: string): number {
 
 const EMPTY_HOLIDAYS: ReadonlySet<string> = new Set();
 
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+/**
+ * 휴가 기간의 절대 상한 — 시작일과 종료일의 '간격' 일수 기준(윤년 1년 = 366).
+ * 상한이 없으면 종료일에 9999-12-31을 넣는 것만으로 countLeaveDays가 290만 회를
+ * 동기 루프해 이벤트 루프를 수 초 멈춘다(서버리스에서 동거 요청까지 함께 멈춘다).
+ * days 컬럼이 numeric(4,1)이라 999.9를 넘는 값은 Postgres 22003도 유발한다.
+ */
+export const MAX_LEAVE_SPAN_DAYS = 366;
+
+/** 두 YYYY-MM-DD 사이의 간격(일). 파싱 불가면 NaN */
+export function leaveSpanDays(startDate: string, endDate: string): number {
+  const start = Date.parse(`${startDate}T00:00:00Z`);
+  const end = Date.parse(`${endDate}T00:00:00Z`);
+  return (end - start) / DAY_MS;
+}
+
 /** 해당 날짜가 휴무일(주말 또는 휴일 목록)인지 */
 export function isNonWorkingDay(
   dateStr: string,
@@ -115,7 +132,8 @@ export function isNonWorkingDay(
 /**
  * 휴가 일수 계산. 반차는 근무일 하루 0.5, 그 외에는 기간 내 근무일 수.
  * 근무일 = 평일(월~금)이면서 휴일(공휴일·전사 휴일) 목록에 없는 날.
- * start > end 또는 근무일이 없으면 0 — 호출부에서 유효성 오류로 처리한다
+ * start > end, 근무일 없음, 기간이 MAX_LEAVE_SPAN_DAYS 초과면 0 —
+ * 호출부의 기존 `days <= 0` 분기가 그대로 사용자 오류로 접는다
  */
 export function countLeaveDays(
   type: LeaveType,
@@ -129,9 +147,11 @@ export function countLeaveDays(
   const start = new Date(`${startDate}T00:00:00Z`).getTime();
   const end = new Date(`${endDate}T00:00:00Z`).getTime();
   if (!Number.isFinite(start) || !Number.isFinite(end) || start > end) return 0;
+  // 루프 진입 전 상한 — 이 한 줄이 라이브러리 전 호출부의 최종 안전망이다
+  if ((end - start) / DAY_MS > MAX_LEAVE_SPAN_DAYS) return 0;
 
   let days = 0;
-  for (let t = start; t <= end; t += 24 * 60 * 60 * 1000) {
+  for (let t = start; t <= end; t += DAY_MS) {
     const d = new Date(t).toISOString().slice(0, 10);
     if (!isNonWorkingDay(d, holidays)) days++;
   }

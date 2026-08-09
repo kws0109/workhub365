@@ -1,10 +1,15 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useActionState } from "react";
 import Link from "next/link";
 import type { ActionState } from "@/components/action-form";
-import { countLeaveDays, isNonWorkingDay, type LeaveType } from "@/lib/leave";
+import {
+  countLeaveDays,
+  isNonWorkingDay,
+  MAX_LEAVE_SPAN_DAYS,
+  type LeaveType,
+} from "@/lib/leave";
 
 type CalendarEntry = {
   startDate: string;
@@ -179,12 +184,32 @@ export function LeaveCalendar({
 
           return (
             // +n 펼치기 버튼을 안에 품어야 해서 셀은 button이 아닌 클릭 가능한 div
-            // (버튼 중첩은 불가). 상단 정렬 flex 컬럼으로 레인 기준선을 통일한다
+            // (버튼 중첩은 불가). 대신 role/tabIndex/onKeyDown으로 버튼 의미를 손수 부여한다 —
+            // 셀이 휴가 신청 모달의 유일한 트리거라 키보드로 못 닿으면 기능 자체가 도달 불가다.
+            // 상단 정렬 flex 컬럼으로 레인 기준선을 통일한다
             <div
               key={date}
+              role="button"
+              tabIndex={nonWorking ? -1 : 0}
+              aria-disabled={nonWorking || undefined}
+              aria-label={
+                nonWorking
+                  ? `${date} ${holidayName ?? "휴무일"}`
+                  : `${date} 휴가 신청`
+              }
               onClick={nonWorking ? undefined : () => setSelectedDate(date)}
+              onKeyDown={(e) => {
+                if (nonWorking) return;
+                // 셀 안의 +n 버튼에서 올라온 Enter/Space는 흘려보낸다 —
+                // 안 그러면 펼치기 한 번에 신청 모달까지 같이 열린다
+                if (e.target !== e.currentTarget) return;
+                if (e.key === "Enter" || e.key === " ") {
+                  e.preventDefault();
+                  setSelectedDate(date);
+                }
+              }}
               title={nonWorking ? holidayName ?? "휴무일" : `${date} 휴가 신청`}
-              className={`flex min-h-16 flex-col items-stretch justify-start p-1 text-left transition ${
+              className={`flex min-h-16 flex-col items-stretch justify-start p-1 text-left transition focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ink ${
                 holidayName || nonWorking ? "bg-red-50/60" : "bg-white"
               } ${nonWorking ? "cursor-not-allowed" : "cursor-pointer hover:bg-canvas"}`}
             >
@@ -240,6 +265,12 @@ export function LeaveCalendar({
               {(extra > 0 || (isExpanded && hiddenWhenCollapsed > 0)) && (
                 <button
                   type="button"
+                  aria-expanded={isExpanded}
+                  aria-label={
+                    isExpanded
+                      ? `${date} 주 휴가 목록 접기`
+                      : `${date} 주 휴가 ${extra}건 더 보기`
+                  }
                   onClick={(e) => {
                     e.stopPropagation();
                     toggleExpanded(weekIdx);
@@ -286,15 +317,40 @@ function RequestModal({
   // 클릭한 날짜가 기본 시작일 — 모달 안에서 수정 가능
   const [startDate, setStartDate] = useState(initialDate);
   const [endDate, setEndDate] = useState(initialDate);
+  const typeRef = useRef<HTMLSelectElement>(null);
 
   // 성공 시 모달을 닫는다 — revalidatePath가 캘린더를 갱신한다
   useEffect(() => {
     if (state.ok) onClose();
   }, [state.ok, onClose]);
 
+  // 마운트 시 첫 입력으로 포커스를 옮기고, 닫힐 때 열었던 셀로 되돌린다.
+  // 되돌리지 않으면 키보드 사용자는 모달을 닫는 순간 문서 맨 앞으로 튕긴다
+  useEffect(() => {
+    const opener = document.activeElement as HTMLElement | null;
+    typeRef.current?.focus();
+    return () => opener?.focus?.();
+  }, []);
+
+  // 날짜 입력에 9999를 타이핑하면 렌더마다 290만 회 루프가 돌아 탭이 얼어붙었다.
+  // 상한(countLeaveDays 내부)과 useMemo(렌더당 1회) 둘 다 필요하다
   const effectiveEnd = type === "half" ? startDate : endDate || startDate;
-  const days = countLeaveDays(type, startDate, effectiveEnd, holidaySet);
+  const days = useMemo(
+    () => countLeaveDays(type, startDate, effectiveEnd, holidaySet),
+    [type, startDate, effectiveEnd, holidaySet],
+  );
   const overBalance = type !== "sick" && days > remainingDays;
+  // 종료일 상한을 브라우저 날짜 피커에도 알린다 (서버 검증과 같은 366일 기준).
+  // max는 피커만 제한할 뿐 직접 타이핑을 막지 못하므로 spanTooLong 안내가 따로 필요하다
+  const maxEndDate = useMemo(() => {
+    const start = Date.parse(`${startDate}T00:00:00Z`);
+    if (!Number.isFinite(start)) return undefined;
+    return new Date(start + MAX_LEAVE_SPAN_DAYS * 86400000)
+      .toISOString()
+      .slice(0, 10);
+  }, [startDate]);
+  const spanTooLong =
+    type !== "half" && !!maxEndDate && effectiveEnd > maxEndDate;
 
   return (
     <div
@@ -302,8 +358,17 @@ function RequestModal({
       onClick={onClose}
     >
       <div
+        role="dialog"
+        aria-modal="true"
+        aria-label="휴가 신청"
         className="w-full max-w-sm rounded-2xl bg-white p-6 shadow-xl"
         onClick={(e) => e.stopPropagation()}
+        onKeyDown={(e) => {
+          if (e.key === "Escape") {
+            e.stopPropagation();
+            onClose();
+          }
+        }}
       >
         <div className="flex items-center justify-between">
           <h3 className="font-semibold">휴가 신청</h3>
@@ -323,6 +388,7 @@ function RequestModal({
               <label className="block">
                 <span className="mb-1 block text-xs font-medium text-ink-secondary">유형</span>
                 <select
+                  ref={typeRef}
                   name="type"
                   value={type}
                   onChange={(e) => setType(e.target.value as LeaveType)}
@@ -363,6 +429,7 @@ function RequestModal({
                     type="date"
                     name="endDate"
                     min={startDate}
+                    max={maxEndDate}
                     value={endDate}
                     onChange={(e) => setEndDate(e.target.value)}
                     className="w-full rounded-lg border border-line px-3 py-2 text-sm"
@@ -390,7 +457,9 @@ function RequestModal({
             </p>
             {days <= 0 && (
               <p className="mt-1 text-xs font-medium text-red-600">
-                기간에 근무일이 없습니다
+                {spanTooLong
+                  ? `휴가 기간은 ${MAX_LEAVE_SPAN_DAYS}일을 넘을 수 없습니다`
+                  : "기간에 근무일이 없습니다"}
               </p>
             )}
             {overBalance && (

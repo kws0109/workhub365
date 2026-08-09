@@ -1,8 +1,10 @@
 import { describe, expect, it } from "vitest";
 import {
   countLeaveDays,
+  leaveSpanDays,
   needsSecondApproval,
   transitionLeave,
+  MAX_LEAVE_SPAN_DAYS,
   type Actor,
   type LeaveRequestLike,
 } from "./leave";
@@ -137,6 +139,43 @@ describe("countLeaveDays", () => {
 
   it("역전된 기간은 0", () => {
     expect(countLeaveDays("annual", "2026-08-12", "2026-08-10")).toBe(0);
+  });
+});
+
+describe("countLeaveDays — 기간 상한", () => {
+  // 상한이 없으면 종료일 9999-12-31 하나로 290만 회 동기 루프가 돌아
+  // 이벤트 루프가 수 초 멈춘다. 경계는 '간격' 일수 기준(MAX_LEAVE_SPAN_DAYS)
+  it("MAX_LEAVE_SPAN_DAYS는 366 (윤년 1년)", () => {
+    expect(MAX_LEAVE_SPAN_DAYS).toBe(366);
+  });
+
+  it("간격 366일까지는 정상 계산 (2026-01-01 ~ 2027-01-02)", () => {
+    expect(leaveSpanDays("2026-01-01", "2027-01-02")).toBe(366);
+    expect(countLeaveDays("annual", "2026-01-01", "2027-01-02")).toBeGreaterThan(
+      0,
+    );
+  });
+
+  it("간격 367일이면 0 — 상한 초과는 호출부에서 사용자 오류로 접힌다", () => {
+    expect(leaveSpanDays("2026-01-01", "2027-01-03")).toBe(367);
+    expect(countLeaveDays("annual", "2026-01-01", "2027-01-03")).toBe(0);
+  });
+
+  it("종료일 9999-12-31은 0이고 즉시 반환된다 (루프 진입 없음)", () => {
+    const t0 = performance.now();
+    expect(countLeaveDays("annual", "2026-01-01", "9999-12-31")).toBe(0);
+    // 상한이 없던 시절 실측 약 3,900ms — 100ms면 루프를 돌지 않았다는 증거로 충분
+    expect(performance.now() - t0).toBeLessThan(100);
+  });
+
+  it("반차는 시작일 하루만 보므로 상한과 무관하게 0.5", () => {
+    expect(countLeaveDays("half", "2026-08-10", "9999-12-31")).toBe(0.5);
+  });
+
+  it("상한 통과 최대치의 일수도 numeric(4,1) 범위(999.9) 안에 있다", () => {
+    const days = countLeaveDays("annual", "2026-01-01", "2027-01-02");
+    expect(days).toBeLessThanOrEqual(MAX_LEAVE_SPAN_DAYS);
+    expect(days).toBeLessThan(999.9);
   });
 });
 
