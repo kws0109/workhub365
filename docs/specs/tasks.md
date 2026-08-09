@@ -57,17 +57,17 @@ Phase 단위로 브랜치 → PR. 완료 시 체크.
 
 ## Phase 7 — 디자인 개편 + M8 협업 (2026-08-09 추가, 목업 기준)
 
-- [ ] 디자인 코어: globals.css @theme 토큰(목업 추출값) + 공용 컴포넌트(Card/StatTile/Badge/SourceChip/Avatar) + 셸·사이드바 개편(협업 섹션, 메일 배지, 사용자 푸터)
-- [ ] 기존 화면 디자인 정렬: 홈(4열 위젯) / 라이선스(+AI 일괄 회수 딥링크) / 근태·휴가 / 결재(마스터-디테일) / 온보딩(칩 UI + 최근 실행 이력) / 감사(필터 탭+검색) / 어시스턴트(만료 카운트)
-- [ ] 신규: 조직도(부서 트리+인물 카드+휴가 배지+프레즌스 강등)
-- [ ] 신규: 일정(주간 타임 그리드, calendarView)
-- [ ] 신규: 메일(3패널 읽기, Mail.Read)
-- [ ] 신규: 게시판(posts/post_reads 테이블, 탭·고정·필독·조회수·인기)
-- [ ] 신규: 문서함(OneDrive 읽기, Files.Read) + 홈 최근 문서·최근 공지 위젯
-- [ ] 신규: 회의실 예약(places+getSchedule+이벤트 생성, 리소스 없으면 강등)
-- [ ] M5 전직원 개방: 도구 minRole 매트릭스 + employee 조회 도구 3종 + 게이트 테스트 확장
-- [ ] 위임 스코프 확장(Calendars.ReadWrite·Files.Read·Presence.Read.All) + 재로그인 동의 검증
-- [ ] 메신저·Teams 멘션 위젯 제외 (protected API — R8.7 결정)
+- [x] 디자인 코어: globals.css @theme 토큰(목업 추출값) + 공용 컴포넌트(Card/StatTile/Badge/SourceChip/Avatar) + 셸·사이드바 개편(협업 섹션, 메일 배지, 사용자 푸터)
+- [x] 기존 화면 디자인 정렬: 홈(4열 위젯) / 라이선스(+AI 일괄 회수 딥링크, 비활성 30/60/90 세그먼트) / 근태·휴가(세그먼트 3탭) / 결재(마스터-디테일 ?sel=, [id]는 리다이렉트) / 온보딩(칩 UI + audit_logs 파생 최근 실행 이력) / 감사(필터 탭+검색) / 어시스턴트(만료 카운트+프리필+추천 칩) — 전부 실브라우저 검증
+- [x] 신규: 조직도(부서 트리+인물 카드+휴가 배지+프레즌스) — 프레즌스 실호출 검증(데모 계정 전원 offline), 휴가 배지는 오늘 승인 건 부재로 조인 경로만 코드 검증
+- [x] 신규: 일정(주간 타임 그리드, calendarView) — 순수 로직 테스트 16개. 실이벤트 블록은 테넌트 일정 부재로 미확인(빈 그리드·주 이동 검증)
+- [x] 신규: 메일(3패널 읽기, Mail.Read) — 본문은 text Prefer 평문(XSS 차단), 실메일 탐색 검증
+- [x] 신규: 게시판(posts/post_reads 테이블, 탭·고정·필독·조회수·인기) — 시드 12건, 조회수·필독 확인 실검증
+- [x] 신규: 문서함(OneDrive 읽기, Files.Read) + 홈 최근 문서·최근 공지 위젯 — 쿼터 실값, 빈 드라이브 빈 상태
+- [x] 신규: 회의실 예약(places+getSchedule+이벤트 생성) — 구현 완료. 앱 등록에 Place.Read.All 미부여라 권한 안내 카드로 강등 중(실예약 검증은 권한 부여+회의실 생성 후)
+- [x] M5 전직원 개방: 도구 minRole 매트릭스 + employee 조회 도구 3종(actor 주입) + 게이트 테스트 확장(총 169개) — employee 계정 실브라우저 검증은 남음(게이트는 테스트 커버)
+- [x] 위임 스코프 확장(Calendars.ReadWrite·Files.Read·Presence.Read.All) + 재로그인 동의 검증 — 구세션 강등→재로그인 동의→회복 실확인
+- [x] 메신저·Teams 멘션 위젯 제외 (protected API — R8.7 결정) — 홈 4열은 최근 문서·공지로 대체
 
 ## Phase 6 — 마무리
 - [x] GitHub Actions CI(lint + test + build) — 시크릿 불필요(.env 없는 빌드 사전 검증), 첫 실행 전 단계 통과

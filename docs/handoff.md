@@ -1,72 +1,61 @@
-# Handoff — 세션 인수인계 (2026-08-09 Phase 6 문서·CI 완료 기준)
+# Handoff — 세션 인수인계 (2026-08-09 Phase 7 완료 기준)
 
-새 세션은 이 문서 + [CLAUDE.md](../CLAUDE.md) + [docs/specs/tasks.md](specs/tasks.md)를 읽고 이어서 작업한다. 각 작업의 근거 스펙과 실행 프롬프트는 [docs/prompt-log.md](prompt-log.md)에 기록한다 (새 작업도 같은 형식으로 기록할 것).
+새 세션은 이 문서 + [CLAUDE.md](../CLAUDE.md) + [docs/specs/tasks.md](specs/tasks.md)를 읽고 이어서 작업한다. 각 작업의 근거 스펙과 실행 프롬프트는 [docs/prompt-log.md](prompt-log.md)에 기록한다.
 
 ## 현재 상태
 
-- **완료 (전부 실테넌트/실브라우저 E2E 검증 + 커밋·푸시됨, 미커밋 변경 없음)**
-  - Phase 0~1: 스캐폴드, Entra SSO(2층 인증), Graph 클라이언트, DB 기반
-  - M1 라이선스 대시보드 / M2 온보딩·오프보딩(NDJSON 스트리밍 파이프라인) / M3 휴가(캘린더 클릭→모달, 공휴일 자동수집, 팀 연차 탭) / M4 근태 / M6 기안(전자결재: 템플릿 4종, 자동 결재선, 순차 결재)
-  - 다중 사용자 동시성 강화 (EXCLUDE 제약, 풀 하드닝, after() 등) + 성능 최적화 (쿼리 병렬화, Graph TTL 캐시, jwt 스로틀)
-  - M7 포털 셸 (2026-08-09): 사이드바 섹션 그룹핑+아이콘+기안 미결 배지+M365 딥링크 런처(R7.1~R7.3), 홈 대시보드 위젯 그리드(R7.4 — 근무 카드·타일 3종·내 기안·admin 낭비 KPI/감사 로그 + M365 위젯: 안읽은 메일·오늘 일정, 위임 토큰 서버 전용 처리)
-  - Phase 5 / M5 AI 어시스턴트 (2026-08-09): `packages/mcp-server` 도구 10종(단일 소스, stdio 서버 겸용) + `/api/assistant` tool use 루프(NDJSON) + 승인 카드(pending→executing CAS 클레임, 멱등 키, 만료 15분) + 게이트 시나리오 테스트. 실브라우저 E2E: 조회 3종·승인→Graph 실행·거부·감사 로그 4종. 구현 결정·트레이드오프는 design.md M5 절에 기록
-  - Phase 6 문서·CI (2026-08-09): GitHub Actions CI(lint+test+build, 시크릿 불필요 — 첫 실행 통과), README 전면 보강(mermaid 2종·의사결정 표·CI 배지), Wiki 현행화, docs/deploy.md(Vercel 절차), docs/demo-script.md(장면 7개 대본)
-  - Vercel 프로덕션 배포 (2026-08-09): **https://workhub365-five.vercel.app** — SSO 로그인·홈 위젯(위임 메일 포함)·라이선스 Graph·어시스턴트 승인 게이트 전체 플로·감사 로그 실검증 완료. 첫 배포에서 AUTH_URL이 localhost 기본값 그대로라 로그인 리디렉션이 localhost로 돌아가는 문제 발생 → 환경변수 수정+Redeploy로 해결(deploy.md 함정 절 기록)
-- **남은 것**: ① Phase 7 계속(아래 절) ② 데모 영상 녹화(디자인 개편 완료 후) — E3 평가판 만료(8월 말경) 전에! ③ (선택) M3 스트레치. 모바일 드로어는 폐기(2026-08-09)
+- **완료 (전부 커밋·푸시됨, 미커밋 변경 없음)**
+  - Phase 0~6 전체 + M6 기안 + M7 포털 셸 + Phase 5 AI 어시스턴트 + Vercel 프로덕션 배포(https://workhub365-five.vercel.app)
+  - **Phase 7 전체 (2026-08-09)**: 디자인 시스템 정렬 + M8 협업 6화면 + B1~B17
+    - 기존 화면 정렬: 홈 4열(B7 최근 문서·B8 최근 공지 포함), 라이선스(30/60/90 세그먼트+B13 프리필 딥링크), 감사(B11 필터 탭+검색), 온보딩(칩 UI+B14 실행 이력), 어시스턴트(B16 만료 카운트+?prompt= 프리필), 결재 마스터-디테일(B12, /proposals/[id]는 ?sel= 리다이렉트), 근태·휴가 세그먼트 3탭(B17)
+    - 신규 화면: 메일(B1, 3패널·text Prefer 평문), 일정(B2, 주간 그리드), 조직도(B3, 휴가 배지+프레즌스), 게시판(B4, posts/post_reads 신설+시드 12건), 문서함(B5), 회의실(B6, 감사 로그 room.book/cancel)
+    - B15 전직원 개방: minRole 매트릭스, employee 본인 조회 도구 3종(actor 주입), 게이트 2중화, 사이드바·라우트 가드 완화. 게이트 테스트 확장 — **Vitest 총 169개**
+    - 위임 스코프 확장 완료: `Mail.Read Calendars.ReadWrite Files.Read Presence.Read.All` — auth.ts와 delegated.ts 리프레시 scope **두 곳 동기**(주석 참조). 구세션 강등→재로그인 동의→회복까지 실검증(사용자가 세션 중 직접 재로그인·동의함)
+    - Graph 클라이언트 15초 타임아웃(app-only·위임·토큰 엔드포인트) — 매달린 소켓이 single-flight 뒤에서 페이지를 5~7분 멈추던 실측 결함 수정
+- **남은 것**
+  1. **프로덕션(Vercel) 반영 확인** — main 푸시로 자동 배포되지만 posts 테이블은 이미 같은 Neon DB라 추가 작업 없음. 프로덕션에서 재로그인(스코프 동의)만 하면 협업 화면이 살아난다
+  2. (선택) **회의실 실예약 검증** — 앱 등록 #2에 `Place.Read.All`(application) 권한+관리자 동의 부여, M365 관리센터에서 리소스 사서함(회의실) 생성 → /rooms가 가용성 그리드로 전환. 현재는 권한 안내 카드 강등(정상 설계 경로)
+  3. (선택) **employee 계정 실브라우저 E2E** — B15 게이트는 테스트 169개로 커버되지만 화면 확인은 안 함: 데모 계정(예: dev1) 로그인 → 사이드바 AI 표시, 도구 3종만, "내 연차 며칠 남았어?" 실행, admin 도구 미노출 확인
+  4. **데모 영상 녹화**(docs/demo-script.md — Phase 7 화면 반영해 대본 갱신 필요할 수 있음) — **E3 평가판 만료(8월 말경) 전에!**
+  5. (선택) M3 스트레치(승인 시 Outlook 이벤트 생성)
 
-## Phase 7 이어서 작업 (디자인 개편 + M8 협업 — 1차 완료 상태)
+## 이 대화에서만 알 수 있는 것 (재발 방지·컨텍스트)
 
-**완료(3f3207d)**: 디자인 토큰(globals.css @theme)·공용 UI(components/ui.tsx)·사이드바 4섹션+메일 배지·협업 라우트 6개 플레이스홀더. 스펙은 requirements M8/R5.1 개정·design.md 디자인 시스템+M8 절에 반영됨.
-
-**필수 참조 문서** (대화 없이 재구성 가능하게 보존됨):
-- [docs/mockup/design-system.md](mockup/design-system.md) — 목업 추출 토큰·컴포넌트 규격 전체 (픽셀 단위)
-- [docs/mockup/feature-map.md](mockup/feature-map.md) — 화면별 상세 구성, B1~B17 신규 항목별 Graph 엔드포인트·난이도·가짜 데이터 대체법
-- docs/mockup/workhub365-mockup.html — 목업 원본(참조용)
-
-**남은 작업 순서 (권장)**:
-1. 기존 화면 디자인 정렬 + 소형 신규: 홈 4열 위젯(최근 문서·공지는 화면 구현 후), 라이선스(+B13 AI 딥링크 버튼), 감사(B11 필터 탭+검색), 온보딩(B14 최근 실행 이력, 칩 UI), 어시스턴트(만료 카운트), 근태/휴가(상단 세그먼트 탭으로 상호 연결 — 통합 대신 탭 결정), 결재 마스터-디테일(B12, 참조 탭은 후순위)
-2. 신규 화면(가치순): 조직도(app-only 재사용+오늘 휴가 배지) → 일정(주간 그리드) → 메일(3패널) → 게시판(posts/post_reads 테이블 신설+시드) → 문서함 → 회의실(리소스 없으면 강등)
-3. 위임 스코프 확장: src/auth.ts scope에 `Calendars.ReadWrite Files.Read Presence.Read.All` 추가(Calendars.Read 대체) — 기존 세션 위젯 강등되므로 확장 화면 구현과 같은 커밋에, 사용자 재로그인 필요
-4. B15 전직원 개방: 도구 minRole + employee 조회 도구 3종(내 연차·내 주간 근무·내 기안 — actor userId 주입) + 게이트 테스트 확장 + 사이드바 AI 섹션 admin 게이트 해제(sidebar.tsx 주석 참조) + assistant 페이지/route 가드 완화
-5. 각 단계: 사이클(테스트→build→실브라우저→리뷰→커밋) 유지. 리뷰는 정확성·컨벤션 2렌즈
-
-**이 대화에서만 알 수 있는 결정** (스펙에 요약됨, 상세):
-- 메신저·Teams 멘션 위젯 제외(R8.7, protected API), 회의실은 리소스 사서함 없으면 강등(사서함 생성은 M365 관리센터 — 사용자 액션)
-- "새 일정"·"업로드"·"답장" 등 쓰기 UX는 딥링크 위임(스코프 최소화) — 예외는 회의실 예약(ReadWrite 필요, 구현하기로 함)
-- 근태·휴가는 페이지 통합 대신 사이드바 단일 메뉴+두 라우트 유지(활성 판정 처리됨), 페이지 상단 세그먼트 탭으로 상호 이동
-- 로컬 dev 로그인: 브라우저에 Microsoft 세션이 살아있으면 로그인 버튼 클릭만으로 자동 SSO됨(자격 증명 불필요) — E2E 때 활용
-- 검증 상태: Vitest 96개 통과, lint/build 클린, CI 녹색, MCP stdio JSON-RPC 실검증, 프로덕션 체크리스트 통과
-
-## 남은 작업 착수 시 알아야 할 것
-
-- Vercel: 시크릿 없이 빌드 통과 확인됨(.env.local 제거 빌드로 검증) — 임포트만 하면 빌드는 성공, 기능은 환경변수 등록 후. `/api/assistant` `maxDuration 180`은 기본 한도(300) 안
-- MCP stdio 독립 실행: `npm run mcp:stdio` — tsx가 `--conditions=react-server`로 `server-only`를 우회한다(플래그 제거하면 즉시 깨짐)
-- 어시스턴트 E2E 재검증 시: 데모 계정 세션 철회(`revoke_user_sessions`)가 무해해서 승인 플로 테스트에 적합. 오하린(fin2) 세션은 Phase 5 검증에서 이미 철회됨
-- 2-렌즈 리뷰에서 수용한 잔여 한계(수정 안 함): 대화 이력 80메시지 초과 시 '새 대화' 안내로 해소(자동 트리밍 없음), executing 잔류 행 수동 정리(리퍼 없음 — design.md M5 트레이드오프 참조)
+- **목업 분석 문서 유실 사건**: design-system.md·feature-map.md가 빈 파일로 커밋됐던 것을 목업 HTML+스펙에서 재구성함(1d62f79). B 번호는 handoff 참조(B11~B15)를 고정점으로 재부여 — [docs/mockup/feature-map.md](mockup/feature-map.md)가 이제 화면별 구현 스펙의 진실
+- **/places는 Place.Read.All 미부여 시 메시지 없는 401**(403 아님) — rooms.ts가 권한 안내로 변환한다. 또 401을 받으면 graphFetch가 앱 토큰을 폐기·재발급하는데, 토큰 엔드포인트로 가는 소켓이 고착되면 single-flight 뒤에서 전부 멈춘다 → 15초 타임아웃이 방어(60a84a2)
+- **스코프 확장은 두 곳**: auth.ts(로그인)과 delegated.ts(리프레시) — 리프레시가 미동의 스코프를 요구하면 consent_required로 실패해 null(강등) 반환. 이 강등이 "기존 세션 위젯 강등" 경로의 실체
+- **OneDrive 첫 접근은 콜드 프로비저닝**으로 15초 타임아웃이 날 수 있음 — 재시도하면 성공(문서함에서 실측)
+- 결재 B12: 마스터 목록은 본인/결재선 것만 노출하지만 최종 방어는 proposal-detail.tsx의 자체 권한 검사(기안자/결재선/admin 외 폴백) — ?sel= 임의 UUID 시도는 폴백 카드
+- 게시판 조회수는 중복 방지 없음(데모 수준, design.md 명시), 댓글·SharePoint 문구는 스펙 제외 항목
+- 어시스턴트 승인 카드 만료 카운트는 표시일 뿐 — 만료 판정 진실은 서버 canDecide(변경 금지)
+- 데모 계정 세션 철회(revoke_user_sessions)가 승인 플로 E2E에 무해해 적합. 이번 세션에서 라이선스 회수 승인 카드 12건 생성→1건 거부·11건 자연 만료(실행 0건 — 불변식 확인)
+- Neon 커넥션 고갈(53300)이 db:push+시드+병렬 렌더가 겹치면 발생 가능 — dev 서버 재시작으로 해소
+- **Vercel 배포 시 유의**: 15초 타임아웃은 GraphError(504)로 흐른다. `/api/assistant` maxDuration 180 유지
 
 ## 환경·운영 정보
 
-- **개발 서버**: `.claude/launch.json`의 `dev` 설정 (preview로 실행, Bash로 띄우지 말 것)
-- **로그인**: 브라우저 세션 쿠키가 초기화되면 사용자에게 Microsoft SSO 재로그인을 요청해야 함 (자격 증명 입력은 대신 못 함). 2026-08-09부터 SSO가 위임 스코프(Mail.Read·Calendars.Read·offline_access)를 요청 — admin 계정은 동의 완료, 다른 데모 계정은 첫 로그인 시 동의 화면이 뜸
-- **테넌트**: `workhub0109.onmicrosoft.com`, Microsoft 365 E3 25석 (평가판 — 만료 전 데모 확보 필요), 관리자 김 우성(admin, 부서 개발)
-- **DB**: Neon(us-east-2, -pooler) — 스키마는 `npm run db:push` + `node --env-file=.env.local scripts/apply-manual-migrations.mjs`(EXCLUDE 제약 등)
-- **데모 데이터**: `scripts/seed-demo-users.mjs`(테넌트 사용자), `scripts/seed-leave-demo.mjs`(팀·휴가 리셋). 데모 계정 비밀번호는 `demo-users.local.json`(gitignore)
-- **Wiki**: `https://github.com/kws0109/workhub365.wiki.git`을 새로 clone해서 Development-Log.md에 추가 후 push (이전 세션의 clone 경로는 세션 스크래치패드라 사라짐). 모듈 완료마다 개발 일지 기록이 관행
+- **개발 서버**: `.claude/launch.json`의 `dev` (preview로 실행, Bash 금지)
+- **로그인**: admin(김 우성)은 확장 스코프 동의 완료. 다른 데모 계정은 첫 로그인 시 동의 화면. 브라우저에 MS 세션이 살아있으면 로그인 버튼만으로 자동 SSO
+- **테넌트**: workhub0109.onmicrosoft.com, E3 25석 평가판(8월 말 만료 추정), admin 김 우성(부서 개발 — 단 Graph 프로필에는 부서 없음 → 조직도에서 '부서 미지정')
+- **DB**: Neon(us-east-2, -pooler) — `npx drizzle-kit push --force`(TTY 없음) + `node --env-file=.env.local scripts/apply-manual-migrations.mjs`. 게시판 시드: `node --env-file=.env.local scripts/seed-board-demo.mjs`(재실행 시 리셋)
+- **데모 데이터**: scripts/seed-demo-users.mjs, seed-leave-demo.mjs, seed-board-demo.mjs. 비밀번호는 demo-users.local.json(gitignore)
+- **Wiki**: https://github.com/kws0109/workhub365.wiki.git 새로 clone해 Development-Log.md 추가 후 push
 
 ## 작업 관행 (이 리포의 리듬)
 
-- **사이클**: 구현 → 순수 로직 단위 테스트 → build/lint → 실브라우저 E2E → 2-렌즈 병렬 리뷰 → 결함 수정 → 논리 단위 커밋(한국어, `Co-Authored-By: Claude Fable 5 <noreply@anthropic.com>`) → push → Wiki 일지
-- UI 관행: zinc 라이트 테마, 서버 액션은 `{error}` 반환 + `ActionForm`(useActionState), 페이지 쿼리는 병렬 스테이지로(원격 DB 왕복 ~200ms), 부서 의존은 상관 서브쿼리
-- 동시성 관행: 조건부 UPDATE(CAS) 전이, 불변식은 DB 제약, 감사 로그는 트랜잭션 안에서
+- **사이클**: 구현 → 순수 로직 단위 테스트 → build/lint → 실브라우저 E2E → 2-렌즈 병렬 리뷰(정확성·컨벤션) → 결함 수정 → 논리 단위 커밋(한국어, `Co-Authored-By: Claude Fable 5 <noreply@anthropic.com>`) → push → Wiki 일지
+- UI: 시맨틱 토큰(line/fill/surface/ink-*)만, 무섀도, 공용 컴포넌트(ui.tsx — Card/StatTile/Badge/SourceChip/Avatar/PageHeader/TabLink/tabClass/FileTypeIcon/ProgressBar) 재사용, 서버 액션 {error}+ActionForm, 페이지 쿼리 병렬 스테이지, 부서 의존은 상관 서브쿼리
+- 쓰기 UX는 딥링크 위임이 원칙 — 유일한 예외는 회의실 예약(Calendars.ReadWrite)
+- 동시성: 조건부 UPDATE(CAS), 불변식은 DB 제약, 감사 로그는 트랜잭션 안
 
-## 대화에서만 알 수 있는 함정 (재발 방지)
+## 대화에서만 알 수 있는 함정 (기존 누적분 — 유효)
 
-- drizzle에서 `sql\`(select ... from ${table} alias ...)\`` 원시 서브쿼리는 렌더링이 어긋날 수 있음 — leftJoin+groupBy 또는 쿼리 빌더 서브쿼리를 쓸 것 (기안 목록에서 1회 발생)
-- 브라우저 자동화 `form_input`은 date input에 문자 단위 입력 → 중간값으로 onChange가 여러 번 발화 + Enter 제출 아티팩트 — E2E는 JS click/검증 병행이 안전
-- 성능 측정은 RSC 헤더 fetch가 아니라 전체 HTML fetch(no-store, 워밍업 2회 후)로
-- `.env.local`은 키가 줄바꿈 없이 붙으면 dotenv가 조용히 무시 — 키 파싱 검증 스크립트로 확인
-- drizzle-kit push는 TTY 없으면 대화형 확인에서 죽음 — 변경 내용 확인 후 `--force`
-- 셀을 클릭 요소로 만들 때 `<button>`의 UA 세로 중앙 정렬이 레이아웃을 깨뜨림(캘린더에서 발생) — flex-col justify-start 강제
-- tsx는 `"type": "module"` 없는 리포에서 .ts를 CJS로 변환 — top-level await가 빌드 에러. stdio 엔트리는 async main() 패턴으로
-- 어시스턴트 채팅은 마크다운을 렌더링하지 않음 — 시스템 프롬프트에서 평문 출력을 지시(표·굵게 금지). 지시 없으면 `**`·표 구문이 그대로 노출됨
-- 대화 이력의 tool_use/tool_result 페어링: 스트림이 도중 끊기면 이력 끝의 미완결 tool_use를 롤백해야 다음 요청이 400으로 죽지 않음 (chat.tsx repairHistory)
+- drizzle `sql\`(select ... from ${table})\`` 원시 서브쿼리 렌더링 어긋남 — leftJoin+groupBy 또는 쿼리 빌더 서브쿼리로
+- 브라우저 자동화 form_input은 date input에 문자 단위 입력 — E2E는 JS click/검증 병행
+- 성능 측정은 전체 HTML fetch(no-store, 워밍업 2회)
+- `.env.local` 키가 줄바꿈 없이 붙으면 dotenv가 조용히 무시
+- drizzle-kit push는 TTY 없으면 대화형에서 죽음 — `--force`
+- 클릭 셀 `<button>`의 UA 세로 정렬이 레이아웃 깨뜨림 — flex-col justify-start
+- tsx는 CJS 변환이라 stdio 엔트리는 async main() 패턴 (top-level await 금지)
+- 어시스턴트 채팅은 마크다운 미렌더링 — 시스템 프롬프트에서 평문 지시 유지
+- 스트림 중단 시 이력 끝 미완결 tool_use 롤백(chat.tsx repairHistory) — 다음 요청 400 방지
