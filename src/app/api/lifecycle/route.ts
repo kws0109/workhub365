@@ -1,11 +1,11 @@
 import { randomBytes } from "node:crypto";
 import { after } from "next/server";
-import { eq } from "drizzle-orm";
 import { db } from "@/db";
-import { auditLogs, users } from "@/db/schema";
+import { auditLogs } from "@/db/schema";
 import { assertRole } from "@/lib/auth-helpers";
 import { bustGraphCache } from "@/lib/graph/cache";
 import * as graphUsers from "@/lib/graph/users";
+import { assertNotSelfTarget } from "@/lib/self-target";
 import {
   generateTempPassword,
   offboardSteps,
@@ -233,29 +233,26 @@ export async function POST(req: Request) {
             upn: `${params.mailNickname}@${domain}`,
           });
         } else {
-          const targetUserId = body.targetUserId;
-          if (typeof targetUserId !== "string" || !targetUserId) {
+          const rawTargetId = body.targetUserId;
+          if (typeof rawTargetId !== "string" || !rawTargetId) {
             send({ done: true, ok: false, error: "INVALID_TARGET" });
             close();
             return;
           }
 
-          // 자기 자신 오프보딩 차단 — 관리자 잠금 사고 방지 (GUID 대소문자 무시)
-          const me = await db.query.users.findFirst({
-            where: eq(users.id, actorId),
-          });
-          if (
-            me?.entraId &&
-            me.entraId.toLowerCase() === targetUserId.toLowerCase()
-          ) {
-            send({
-              done: true,
-              ok: false,
-              error: "자기 자신은 오프보딩할 수 없습니다",
-            });
-            close();
-            return;
-          }
+          // 자기 자신 오프보딩 차단 — 관리자 잠금 사고 방지.
+          // 대상을 Graph로 먼저 정규화한다(온보딩 재개 경로와 같은 패턴):
+          // /users/{id|userPrincipalName}는 UPN도 받으므로 raw 입력과 entraId(GUID)를
+          // 문자열 비교만 하면 본인 UPN을 보낸 요청이 가드를 통과한다.
+          // 어시스턴트의 block_user·revoke_user_sessions와 같은 헬퍼를 공유한다.
+          // 이후 파이프라인에는 정규화된 GUID만 넘긴다 — raw 입력이 Graph 경로에
+          // 다시 들어가면 정규화가 무의미해진다.
+          // 던진 오류는 아래 catch가 {done,ok:false,error}로 스트림에 실어 보낸다
+          const targetUserId = await assertNotSelfTarget(
+            actorId,
+            rawTargetId,
+            "오프보딩",
+          );
 
           const ctx: OffboardCtx = { targetUserId, ops };
           const result = await runPipeline(

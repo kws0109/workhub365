@@ -17,9 +17,12 @@ import {
 import {
   correctLeave,
   countLeaveDays,
+  leaveSpanDays,
+  MAX_LEAVE_SPAN_DAYS,
   type LeaveSnapshot,
   type LeaveType,
 } from "@/lib/leave";
+import { actionErrorMessage, isUuid } from "@/lib/validate";
 
 // 인사 정정(R4.4/R3.9) — 타인의 근태·휴가 기록을 사유 필수로 고친다.
 // 결재 흐름이 아니라 "기록 정정" 경로다: 상태 상향·approverId 변경·본인 정정은 불가.
@@ -48,8 +51,10 @@ function pgCode(e: unknown): string | undefined {
     : undefined;
 }
 
+// 트랜잭션이 의도적으로 던진 메시지("기록을 찾을 수 없습니다")는 그대로 보여주고,
+// code 속성이 붙은 드라이버 오류(22P02 등) 원문은 일반 문구로 접는다
 function fail(e: unknown): ActionState {
-  return { error: e instanceof Error ? e.message : "처리에 실패했습니다" };
+  return { error: actionErrorMessage(e, "처리에 실패했습니다") };
 }
 
 function revalidateAttendance() {
@@ -155,6 +160,8 @@ export async function correctAttendance(
   const session = await assertHr();
   const recordId = String(formData.get("recordId") ?? "");
   const reason = readReason(formData);
+  // uuid 형태 사전 검증 — 위조 값이 raw Postgres 캐스팅 오류로 새지 않게
+  if (!isUuid(recordId)) return { error: "입력이 올바르지 않습니다" };
   if (!reason) return { error: "정정 사유를 입력하세요" };
 
   try {
@@ -260,6 +267,8 @@ export async function createAttendance(
   const session = await assertHr();
   const targetUserId = String(formData.get("targetUserId") ?? "");
   const reason = readReason(formData);
+  // uuid 형태 사전 검증 — 위조 값이 raw Postgres 캐스팅 오류로 새지 않게
+  if (!isUuid(targetUserId)) return { error: "입력이 올바르지 않습니다" };
   if (!reason) return { error: "정정 사유를 입력하세요" };
 
   const checkInAt = kstToUtc(
@@ -336,6 +345,8 @@ export async function deleteAttendance(
   const session = await assertHr();
   const recordId = String(formData.get("recordId") ?? "");
   const reason = readReason(formData);
+  // uuid 형태 사전 검증 — 위조 값이 raw Postgres 캐스팅 오류로 새지 않게
+  if (!isUuid(recordId)) return { error: "입력이 올바르지 않습니다" };
   if (!reason) return { error: "삭제 사유를 입력하세요" };
 
   try {
@@ -404,6 +415,8 @@ export async function correctLeaveRequest(
   const session = await assertHr();
   const requestId = String(formData.get("requestId") ?? "");
   const reason = readReason(formData);
+  // uuid 형태 사전 검증 — 위조 값이 raw Postgres 캐스팅 오류로 새지 않게
+  if (!isUuid(requestId)) return { error: "입력이 올바르지 않습니다" };
   if (!reason) return { error: "정정 사유를 입력하세요" };
 
   const type = String(formData.get("type") ?? "") as LeaveType;
@@ -419,6 +432,15 @@ export async function correctLeaveRequest(
     !DATE_RE.test(endDate)
   ) {
     return { error: "입력이 올바르지 않습니다" };
+  }
+  // 기간 상한은 getHolidaySet·countLeaveDays '앞'에 둔다 (createLeave와 동일 방어) —
+  // DATE_RE는 형식만 보므로 9999-12-31이 통과해 일별 루프가 290만 회 돈다
+  const span = leaveSpanDays(startDate, endDate);
+  if (!Number.isFinite(span)) {
+    return { error: "입력이 올바르지 않습니다" };
+  }
+  if (span > MAX_LEAVE_SPAN_DAYS) {
+    return { error: "휴가 기간이 너무 깁니다" };
   }
 
   try {
@@ -507,6 +529,8 @@ export async function forceCancelLeave(
   const session = await assertHr();
   const requestId = String(formData.get("requestId") ?? "");
   const reason = readReason(formData);
+  // uuid 형태 사전 검증 — 위조 값이 raw Postgres 캐스팅 오류로 새지 않게
+  if (!isUuid(requestId)) return { error: "입력이 올바르지 않습니다" };
   if (!reason) return { error: "취소 사유를 입력하세요" };
 
   try {

@@ -52,9 +52,17 @@ export function toolsForRole(role: Role): ToolDef[] {
   return TOOLS.filter((t) => roleAtLeast(role, t.minRole));
 }
 
+// GUID 형식. src/lib/validate.ts와 같은 패턴이지만 이 패키지는 앱(src/)을
+// import하지 않는 것이 구조 원칙이라 로컬에 둔다.
+// JSON Schema의 pattern에는 플래그가 없으므로 i 대신 문자 클래스로 대소문자를 받는다
+const GUID_RE =
+  /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/;
+
+// 길이만 보던 min(10)에서 GUID로 좁힌다 — 이 값은 Graph 경로에 보간되고,
+// /users/{id|userPrincipalName}는 UPN도 받아 "GUID일 것"이라는 호출부 가정이 깨진다
 const userIdField = z
   .string()
-  .min(10)
+  .regex(GUID_RE, "Entra 객체 ID(GUID) 형식이어야 합니다")
   .describe("대상 사용자의 Entra 객체 ID(GUID). find_users로 먼저 조회한다");
 
 /**

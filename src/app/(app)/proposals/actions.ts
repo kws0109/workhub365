@@ -12,6 +12,7 @@ import {
   validateContent,
   validateLine,
 } from "@/lib/proposal";
+import { actionErrorMessage, isUuid } from "@/lib/validate";
 
 export async function createProposal(
   _prev: ActionState,
@@ -46,8 +47,7 @@ export async function createProposal(
   if (!lineCheck.ok) return { error: lineCheck.error };
 
   // uuid 형태 사전 검증 — 위조 값이 raw Postgres 캐스팅 오류로 새지 않게
-  const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-  if (!approverIds.every((x) => UUID_RE.test(x))) {
+  if (!approverIds.every(isUuid)) {
     return { error: "존재하지 않는 결재자가 포함되어 있습니다" };
   }
 
@@ -108,7 +108,7 @@ export async function decideProposal(
   const action = String(formData.get("action") ?? "") as "approve" | "reject";
   const comment = String(formData.get("comment") ?? "").trim().slice(0, 500) || null;
 
-  if (!proposalId || (action !== "approve" && action !== "reject")) {
+  if (!isUuid(proposalId) || (action !== "approve" && action !== "reject")) {
     return { error: "입력이 올바르지 않습니다" };
   }
   if (action === "reject" && !comment) {
@@ -185,7 +185,8 @@ export async function decideProposal(
       });
     });
   } catch (e) {
-    return { error: e instanceof Error ? e.message : "처리에 실패했습니다" };
+    // 앱이 던진 메시지("이미 종결된 기안입니다")는 그대로, 드라이버 오류 원문은 접는다
+    return { error: actionErrorMessage(e, "처리에 실패했습니다") };
   }
 
   // B12: 상세는 마스터-디테일 화면(?sel)로 통합 — 두 목록 라우트를 갱신한다
@@ -200,7 +201,7 @@ export async function cancelProposal(
 ): Promise<ActionState> {
   const session = await assertRole("admin", "manager", "employee");
   const proposalId = String(formData.get("proposalId") ?? "");
-  if (!proposalId) return { error: "입력이 올바르지 않습니다" };
+  if (!isUuid(proposalId)) return { error: "입력이 올바르지 않습니다" };
 
   try {
     await db.transaction(async (tx) => {
@@ -248,7 +249,8 @@ export async function cancelProposal(
       });
     });
   } catch (e) {
-    return { error: e instanceof Error ? e.message : "처리에 실패했습니다" };
+    // 앱이 던진 메시지("이미 종결된 기안입니다")는 그대로, 드라이버 오류 원문은 접는다
+    return { error: actionErrorMessage(e, "처리에 실패했습니다") };
   }
 
   // B12: 상세는 마스터-디테일 화면(?sel)로 통합 — 두 목록 라우트를 갱신한다
@@ -268,7 +270,7 @@ export async function adminForceReject(
   const session = await assertRole("admin");
   const proposalId = String(formData.get("proposalId") ?? "");
   const comment = String(formData.get("comment") ?? "").trim().slice(0, 500);
-  if (!proposalId) return { error: "입력이 올바르지 않습니다" };
+  if (!isUuid(proposalId)) return { error: "입력이 올바르지 않습니다" };
   if (!comment) return { error: "강제 반려 사유를 입력하세요" };
 
   try {
@@ -293,7 +295,8 @@ export async function adminForceReject(
       });
     });
   } catch (e) {
-    return { error: e instanceof Error ? e.message : "처리에 실패했습니다" };
+    // 앱이 던진 메시지("이미 종결된 기안입니다")는 그대로, 드라이버 오류 원문은 접는다
+    return { error: actionErrorMessage(e, "처리에 실패했습니다") };
   }
 
   // B12: 상세는 마스터-디테일 화면(?sel)로 통합 — 두 목록 라우트를 갱신한다

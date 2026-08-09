@@ -11,7 +11,7 @@ import {
   getTool,
 } from "../../../packages/mcp-server/src/tools";
 import type { Role, ToolContext } from "../../../packages/mcp-server/src/types";
-import { createAssistantOps } from "./ops";
+import { createAssistantOps, type AssistantActor } from "./ops";
 
 // /api/assistant tool use 루프의 도구 처리부.
 // - 조회형: 즉시 실행 + 감사 로그 (R5.4 — 어시스턴트의 모든 도구 실행 기록)
@@ -25,7 +25,13 @@ import { createAssistantOps } from "./ops";
 // executeTool은 여전히 approval_required를 반환하고 실행은 승인 후에만 일어난다.
 
 let ctxSingleton: ToolContext | null = null;
-export function assistantCtx(): ToolContext {
+/**
+ * actor를 주면 자기 자신 차단·세션 철회 가드가 활성화된 컨텍스트를 만든다.
+ * ops는 클로저 묶음일 뿐이라 요청마다 생성해도 비용이 없다 — actor 없는 호출만
+ * 기존처럼 싱글턴을 재사용한다(가드는 비교 대상이 없어 정규화만 수행).
+ */
+export function assistantCtx(actor?: AssistantActor): ToolContext {
+  if (actor) return createAssistantOps(actor);
   ctxSingleton ??= createAssistantOps();
   return ctxSingleton;
 }
@@ -272,7 +278,7 @@ export async function runAssistantToolUse(opts: {
   actorRole: Role;
 }): Promise<ToolUseOutcome> {
   const { toolUseId, name, input, actorId, actorRole } = opts;
-  const out = await executeTool(name, input, assistantCtx(), {
+  const out = await executeTool(name, input, assistantCtx({ userId: actorId }), {
     actor: { userId: actorId, role: actorRole },
   });
 

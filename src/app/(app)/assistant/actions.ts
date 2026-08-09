@@ -6,6 +6,7 @@ import { approvalRequests, auditLogs } from "@/db/schema";
 import { canDecide, type ApprovalLike } from "@/lib/approval";
 import { assertRole } from "@/lib/auth-helpers";
 import { assistantCtx } from "@/lib/assistant/execute";
+import { actionErrorMessage, isUuid } from "@/lib/validate";
 import { executeTool } from "../../../../packages/mcp-server/src/tools";
 
 // 승인 카드 액션. 변경형 도구가 실제로 실행되는 유일한 경로다.
@@ -43,6 +44,56 @@ function splitSensitive(result: unknown): { stored: unknown; tempPassword?: stri
   return { stored: result };
 }
 
+/**
+ * 조회 → 결재 가능 검사 → pending→executing CAS 클레임.
+ * 실행 이전 단계라 DB 오류를 인라인 오류로 강등해도 안전하다 —
+ * 서버 액션이 그대로 던지면 승인 카드가 오류 경계로 떨어져 관리자가
+ * 무엇이 실패했는지 알 수 없다.
+ */
+async function claimApprovalRequest(
+  requestId: string,
+  decidedBy: string,
+  now: Date,
+): Promise<
+  { ok: true; request: typeof approvalRequests.$inferSelect } | { ok: false; error: string }
+> {
+  try {
+    const rows = await db
+      .select()
+      .from(approvalRequests)
+      .where(eq(approvalRequests.id, requestId))
+      .limit(1);
+    const request = rows[0];
+    if (!request) return { ok: false, error: "요청을 찾을 수 없습니다" };
+
+    const check = canDecide(request as ApprovalLike, now);
+    if (!check.ok) return { ok: false, error: check.reason };
+
+    // 실행-정확히-1회 클레임: pending이고 만료 전인 행만 executing으로 전이
+    const claimed = await db
+      .update(approvalRequests)
+      .set({ status: "executing", decidedBy, decidedAt: now })
+      .where(
+        and(
+          eq(approvalRequests.id, requestId),
+          eq(approvalRequests.status, "pending"),
+          or(
+            isNull(approvalRequests.expiresAt),
+            gt(approvalRequests.expiresAt, now),
+          ),
+        ),
+      )
+      .returning({ id: approvalRequests.id });
+    if (claimed.length === 0) {
+      return { ok: false, error: "이미 처리되었거나 만료된 요청입니다" };
+    }
+    return { ok: true, request };
+  } catch (e) {
+    console.error("[assistant] 승인 요청 클레임 실패:", requestId, e);
+    return { ok: false, error: actionErrorMessage(e) };
+  }
+}
+
 export async function approveAssistantRequest(
   requestId: string,
 ): Promise<ApproveResult> {
@@ -52,47 +103,29 @@ export async function approveAssistantRequest(
   } catch {
     return { ok: false, error: "권한이 없습니다" };
   }
-
-  const rows = await db
-    .select()
-    .from(approvalRequests)
-    .where(eq(approvalRequests.id, requestId))
-    .limit(1);
-  const request = rows[0];
-  if (!request) return { ok: false, error: "요청을 찾을 수 없습니다" };
+  // uuid 형태 사전 검증 — 위조 값이 raw Postgres 캐스팅 오류로 새지 않게
+  if (!isUuid(requestId)) return { ok: false, error: "요청을 찾을 수 없습니다" };
 
   const now = new Date();
-  const check = canDecide(request as ApprovalLike, now);
-  if (!check.ok) return { ok: false, error: check.reason };
-
-  // 실행-정확히-1회 클레임: pending이고 만료 전인 행만 executing으로 전이
-  const claimed = await db
-    .update(approvalRequests)
-    .set({ status: "executing", decidedBy: session.user.id, decidedAt: now })
-    .where(
-      and(
-        eq(approvalRequests.id, requestId),
-        eq(approvalRequests.status, "pending"),
-        or(
-          isNull(approvalRequests.expiresAt),
-          gt(approvalRequests.expiresAt, now),
-        ),
-      ),
-    )
-    .returning({ id: approvalRequests.id });
-  if (claimed.length === 0) {
-    return { ok: false, error: "이미 처리되었거나 만료된 요청입니다" };
-  }
+  const claim = await claimApprovalRequest(requestId, session.user.id, now);
+  if (!claim.ok) return { ok: false, error: claim.error };
+  const request = claim.request;
 
   const payload = request.payload as { input?: unknown; summary?: string };
   const summary = payload.summary ?? request.toolName;
 
   // 게이트 통과 실행 — approvalGranted는 이 클레임 성공 경로에서만 전달된다.
-  // 승인(변경형 실행)은 admin 전용이므로 actor도 admin 세션이다 (R5.1 현행 유지)
-  const out = await executeTool(request.toolName, payload.input, assistantCtx(), {
-    approvalGranted: true,
-    actor: { userId: session.user.id, role: session.user.role },
-  });
+  // 승인(변경형 실행)은 admin 전용이므로 actor도 admin 세션이다 (R5.1 현행 유지).
+  // ctx에 actor를 묶어 자기 자신 차단·세션 철회 가드가 ops 공통 지점에서 걸리게 한다
+  const out = await executeTool(
+    request.toolName,
+    payload.input,
+    assistantCtx({ userId: session.user.id }),
+    {
+      approvalGranted: true,
+      actor: { userId: session.user.id, role: session.user.role },
+    },
+  );
 
   // 실행 이후의 기록 실패가 결과 전달(특히 임시 비밀번호)을 막으면 안 된다.
   // 트랜잭션 실패 시 상태 갱신·감사 로그를 개별로 한 번 더 시도하고(불변식 4),
@@ -176,29 +209,47 @@ export async function rejectAssistantRequest(
     return { ok: false, error: "권한이 없습니다" };
   }
 
+  // uuid 형태 사전 검증 — 위조 값이 raw Postgres 캐스팅 오류로 새지 않게
+  if (!isUuid(requestId)) return { ok: false, error: "요청을 찾을 수 없습니다" };
+
   const now = new Date();
-  const rejected = await db
-    .update(approvalRequests)
-    .set({ status: "rejected", decidedBy: session.user.id, decidedAt: now })
-    .where(
-      and(
-        eq(approvalRequests.id, requestId),
-        eq(approvalRequests.status, "pending"),
-      ),
-    )
-    .returning({ id: approvalRequests.id, toolName: approvalRequests.toolName });
+  let rejected;
+  try {
+    rejected = await db
+      .update(approvalRequests)
+      .set({ status: "rejected", decidedBy: session.user.id, decidedAt: now })
+      .where(
+        and(
+          eq(approvalRequests.id, requestId),
+          eq(approvalRequests.status, "pending"),
+        ),
+      )
+      .returning({
+        id: approvalRequests.id,
+        toolName: approvalRequests.toolName,
+      });
+  } catch (e) {
+    console.error("[assistant] 승인 요청 반려 실패:", requestId, e);
+    return { ok: false, error: actionErrorMessage(e) };
+  }
   if (rejected.length === 0) {
     return { ok: false, error: "이미 처리된 요청입니다" };
   }
 
-  await db.insert(auditLogs).values({
-    actorId: session.user.id,
-    actorType: "user",
-    action: "assistant.approval.reject",
-    targetType: "approval_request",
-    targetId: requestId,
-    detail: { toolName: rejected[0].toolName },
-    success: true,
-  });
+  try {
+    await db.insert(auditLogs).values({
+      actorId: session.user.id,
+      actorType: "user",
+      action: "assistant.approval.reject",
+      targetType: "approval_request",
+      targetId: requestId,
+      detail: { toolName: rejected[0].toolName },
+      success: true,
+    });
+  } catch (e) {
+    // 반려는 이미 커밋됐다 — 감사 기록 실패로 성공을 실패로 되돌리지 않되
+    // 침묵하지도 않는다 (execute.ts의 audit() 관행과 동일)
+    console.error("[assistant] 반려 감사 로그 기록 실패:", requestId, e);
+  }
   return { ok: true };
 }

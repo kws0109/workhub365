@@ -7,10 +7,8 @@ import { db } from "@/db";
 import { postReads, posts } from "@/db/schema";
 import { assertRole } from "@/lib/auth-helpers";
 import { isPostCategory } from "@/lib/board";
+import { isUuid } from "@/lib/validate";
 import type { ActionState } from "@/components/action-form";
-
-const UUID_RE =
-  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 // 게시판 쓰기는 자체 콘텐츠 — 관리 쓰기 액션이 아니므로 감사 로그를 남기지 않는다.
 // 단 notice 카테고리·pinned·mustRead는 admin 전용이며 반드시 서버에서 검증한다.
@@ -63,7 +61,7 @@ export async function markPostRead(
 ): Promise<ActionState> {
   const session = await assertRole("admin", "manager", "employee");
   const postId = String(formData.get("postId") ?? "");
-  if (!UUID_RE.test(postId)) return { error: "입력이 올바르지 않습니다" };
+  if (!isUuid(postId)) return { error: "입력이 올바르지 않습니다" };
 
   const post = await db.query.posts.findFirst({
     where: eq(posts.id, postId),
@@ -90,7 +88,7 @@ export async function togglePostFlag(
   await assertRole("admin");
   const postId = String(formData.get("postId") ?? "");
   const flag = String(formData.get("flag") ?? "");
-  if (!UUID_RE.test(postId) || (flag !== "pinned" && flag !== "mustRead")) {
+  if (!isUuid(postId) || (flag !== "pinned" && flag !== "mustRead")) {
     return { error: "입력이 올바르지 않습니다" };
   }
 
@@ -117,7 +115,7 @@ export async function deletePost(
 ): Promise<ActionState> {
   await assertRole("admin");
   const postId = String(formData.get("postId") ?? "");
-  if (!UUID_RE.test(postId)) return { error: "입력이 올바르지 않습니다" };
+  if (!isUuid(postId)) return { error: "입력이 올바르지 않습니다" };
 
   await db.transaction(async (tx) => {
     await tx.delete(postReads).where(eq(postReads.postId, postId));

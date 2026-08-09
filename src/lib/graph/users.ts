@@ -4,6 +4,11 @@ import { GraphError, graphFetch, graphGetAll, graphGetAllPaged } from "./client"
 // 999명/페이지 × 50페이지 — licenses.ts와 동일한 대형 테넌트 방어선
 const MAX_PAGES = 50;
 
+// 경로 세그먼트에 들어가는 식별자는 encodeURIComponent로 감싼다.
+// /users/{id|userPrincipalName}는 UPN도 받으므로 값이 GUID라는 보장이 없고,
+// UPN에는 #·+ 등 경로에서 의미를 갖는 문자가 들어갈 수 있다
+// (위임 호출 쪽 mail.ts·drive.ts·rooms.ts는 이미 같은 방어를 하고 있다).
+
 export type DirectoryUser = {
   id: string;
   displayName: string;
@@ -81,14 +86,14 @@ export async function setAccountEnabled(
   userId: string,
   enabled: boolean,
 ): Promise<void> {
-  await graphFetch(`/users/${userId}`, {
+  await graphFetch(`/users/${encodeURIComponent(userId)}`, {
     method: "PATCH",
     body: JSON.stringify({ accountEnabled: enabled }),
   });
 }
 
 export async function revokeSignInSessions(userId: string): Promise<void> {
-  await graphFetch(`/users/${userId}/revokeSignInSessions`, {
+  await graphFetch(`/users/${encodeURIComponent(userId)}/revokeSignInSessions`, {
     method: "POST",
   });
 }
@@ -98,7 +103,7 @@ export async function setUserLicenses(
   addSkuIds: string[],
   removeSkuIds: string[],
 ): Promise<void> {
-  await graphFetch(`/users/${userId}/assignLicense`, {
+  await graphFetch(`/users/${encodeURIComponent(userId)}/assignLicense`, {
     method: "POST",
     body: JSON.stringify({
       addLicenses: addSkuIds.map((skuId) => ({ skuId, disabledPlans: [] })),
@@ -109,7 +114,7 @@ export async function setUserLicenses(
 
 export async function getUserLicenseSkuIds(userId: string): Promise<string[]> {
   const user = await graphFetch<{ assignedLicenses: { skuId: string }[] }>(
-    `/users/${userId}?$select=assignedLicenses`,
+    `/users/${encodeURIComponent(userId)}?$select=assignedLicenses`,
   );
   return user.assignedLicenses.map((l) => l.skuId);
 }
@@ -124,7 +129,7 @@ export async function getUserGroupIds(
     id: string;
     displayName: string;
     groupTypes?: string[];
-  }>(`/users/${userId}/memberOf`);
+  }>(`/users/${encodeURIComponent(userId)}/memberOf`);
   return items
     .filter((i) => i["@odata.type"] === "#microsoft.graph.group")
     .map((g) => ({
@@ -167,7 +172,7 @@ export async function lookupUserBasic(
 ): Promise<UserBasic | null> {
   try {
     return await graphFetch<UserBasic>(
-      `/users/${userId}?$select=id,displayName,userPrincipalName`,
+      `/users/${encodeURIComponent(userId)}?$select=id,displayName,userPrincipalName`,
     );
   } catch (e) {
     if (isTargetNotFound(e)) return null;
@@ -199,7 +204,7 @@ export async function lookupGroupBasic(
   if (cached) return cached;
   try {
     return await graphFetch<DirectoryGroup>(
-      `/groups/${groupId}?$select=id,displayName`,
+      `/groups/${encodeURIComponent(groupId)}?$select=id,displayName`,
     );
   } catch (e) {
     if (isTargetNotFound(e)) return null;
@@ -211,10 +216,10 @@ export async function addUserToGroup(
   userId: string,
   groupId: string,
 ): Promise<void> {
-  await graphFetch(`/groups/${groupId}/members/$ref`, {
+  await graphFetch(`/groups/${encodeURIComponent(groupId)}/members/$ref`, {
     method: "POST",
     body: JSON.stringify({
-      "@odata.id": `https://graph.microsoft.com/v1.0/directoryObjects/${userId}`,
+      "@odata.id": `https://graph.microsoft.com/v1.0/directoryObjects/${encodeURIComponent(userId)}`,
     }),
   });
 }
@@ -223,7 +228,8 @@ export async function removeUserFromGroup(
   userId: string,
   groupId: string,
 ): Promise<void> {
-  await graphFetch(`/groups/${groupId}/members/${userId}/$ref`, {
-    method: "DELETE",
-  });
+  await graphFetch(
+    `/groups/${encodeURIComponent(groupId)}/members/${encodeURIComponent(userId)}/$ref`,
+    { method: "DELETE" },
+  );
 }

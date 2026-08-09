@@ -30,12 +30,20 @@ import {
 } from "@/lib/attendance";
 import { generateTempPassword } from "@/lib/lifecycle";
 import { countMyTurnProposals } from "@/lib/proposal-queries";
+import { assertNotSelfTarget } from "@/lib/self-target";
 import type { ToolContext } from "../../../packages/mcp-server/src/types";
 
 // AI 어시스턴트 도구의 ToolContext 실제 구현.
 // Next.js /api/assistant와 stdio MCP 서버가 동일 구현을 주입받는다.
 // 승인 게이트는 packages/mcp-server의 executeTool이 강제하므로 여기서는
 // 변경형 메서드도 단순 위임이다 — 이 모듈을 직접 import해 게이트를 우회하지 말 것.
+//
+// 예외는 자기 자신 차단·세션 철회 가드다: 도구 정의(packages/mcp-server)는 DB를
+// 모르므로 "요청자 본인인가"를 판정할 수 없다. 그래서 가드를 호출 지점이 아니라
+// 이 공통 구현에 둔다 — 승인 카드 실행 경로가 새로 생겨도 같은 방어를 상속한다.
+
+/** 요청자(로그인 사용자)의 DB users.id. 세션이 없는 stdio 경로는 undefined */
+export type AssistantActor = { userId: string };
 
 function addDaysToDateStr(dateStr: string, days: number): string {
   const d = new Date(`${dateStr}T00:00:00Z`);
@@ -43,7 +51,7 @@ function addDaysToDateStr(dateStr: string, days: number): string {
   return d.toISOString().slice(0, 10);
 }
 
-export function createAssistantOps(): ToolContext {
+export function createAssistantOps(actor?: AssistantActor): ToolContext {
   return {
     async getLicenseOverview(inactiveDays) {
       const [skus, licenseUsers] = await Promise.all([
@@ -324,13 +332,25 @@ export function createAssistantOps(): ToolContext {
       };
     },
 
+    // 로그인을 잠그는 두 액션만 자기 자신 가드를 탄다 (오프보딩 마법사와 동일 헬퍼).
+    // 대상은 Graph로 정규화한 GUID로 바꿔 호출한다 — 입력이 UPN이어도 같은 판정을 받는다
     async blockUser(userId) {
-      await setAccountEnabled(userId, false);
+      const targetId = await assertNotSelfTarget(
+        actor?.userId,
+        userId,
+        "계정 차단",
+      );
+      await setAccountEnabled(targetId, false);
       bustGraphCache("graph:");
     },
 
     async revokeUserSessions(userId) {
-      await revokeSignInSessions(userId);
+      const targetId = await assertNotSelfTarget(
+        actor?.userId,
+        userId,
+        "세션 철회",
+      );
+      await revokeSignInSessions(targetId);
     },
 
     async removeUserLicense(userId, skuId) {
