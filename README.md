@@ -125,6 +125,7 @@ sequenceDiagram
 
 ## 데모
 
+- **제품 소개 페이지**: https://kws0109.github.io/workhub365/ — 화면과 기능을 한 페이지로 (로그인 불필요)
 - **라이브**: https://workhub365-five.vercel.app — 데모 테넌트(`workhub0109.onmicrosoft.com`) 구성원만 로그인 가능합니다 (Entra SSO 전용, 외부 계정은 fail-closed로 거부)
 - **시나리오 대본**: [docs/demo-script.md](docs/demo-script.md) — 라이선스 낭비 발견 → 어시스턴트로 회수(승인 게이트) → 오프보딩 → 휴가/기안 결재 흐름
 - **영상·화면 캡처**: 준비 중 — 촬영 목록과 README 삽입 위치는 [docs/screenshot-guide.md](docs/screenshot-guide.md)

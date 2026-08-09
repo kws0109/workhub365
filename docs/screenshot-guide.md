@@ -57,10 +57,17 @@ README에 넣을 화면 캡처 목록. **E3 평가판 만료 전에** 데모 영
 
 > 외부 계정은 로그인할 수 없으니 위 화면 캡처로 확인하세요.
 
+## 제품 소개 페이지도 같은 파일을 쓴다
+
+[site/index.html](../site/index.html)(→ https://kws0109.github.io/workhub365/)이 같은 7장을 참조한다.
+Pages 워크플로가 `public/screenshots`를 빌드 시 복사하므로 **파일을 한 번만 넣으면 README와 소개 페이지가 동시에 채워진다.** 이미지가 없는 동안은 자리표시자가 표시되고, 넣는 순간 자동으로 대체된다.
+
 ## 커밋
 
 ```bash
-git add public/screenshots README.md && git commit -m "docs: README에 화면 캡처 추가"
+git add public/screenshots README.md && git commit -m "docs: 화면 캡처 추가"
 ```
+
+푸시하면 Pages가 자동 재배포된다. 배포 후 https://kws0109.github.io/workhub365/#screens 에서 확인할 것.
 
 PNG는 화면당 200~500KB 수준이면 충분하다. 1MB를 넘으면 화질을 낮춰 다시 저장할 것.
