@@ -12,7 +12,29 @@
   - Phase 5 / M5 AI 어시스턴트 (2026-08-09): `packages/mcp-server` 도구 10종(단일 소스, stdio 서버 겸용) + `/api/assistant` tool use 루프(NDJSON) + 승인 카드(pending→executing CAS 클레임, 멱등 키, 만료 15분) + 게이트 시나리오 테스트. 실브라우저 E2E: 조회 3종·승인→Graph 실행·거부·감사 로그 4종. 구현 결정·트레이드오프는 design.md M5 절에 기록
   - Phase 6 문서·CI (2026-08-09): GitHub Actions CI(lint+test+build, 시크릿 불필요 — 첫 실행 통과), README 전면 보강(mermaid 2종·의사결정 표·CI 배지), Wiki 현행화, docs/deploy.md(Vercel 절차), docs/demo-script.md(장면 7개 대본)
   - Vercel 프로덕션 배포 (2026-08-09): **https://workhub365-five.vercel.app** — SSO 로그인·홈 위젯(위임 메일 포함)·라이선스 Graph·어시스턴트 승인 게이트 전체 플로·감사 로그 실검증 완료. 첫 배포에서 AUTH_URL이 localhost 기본값 그대로라 로그인 리디렉션이 localhost로 돌아가는 문제 발생 → 환경변수 수정+Redeploy로 해결(deploy.md 함정 절 기록)
-- **남은 것**: ① 프로덕트급 디자인 개편(사용자 제공 목업 기준 — 진행 중) ② 데모 영상 녹화(대본 docs/demo-script.md) — E3 평가판 만료(8월 말경) 전에! (사용자 액션) ③ (선택) M3 스트레치. 모바일 드로어는 폐기 결정(2026-08-09)
+- **남은 것**: ① Phase 7 계속(아래 절) ② 데모 영상 녹화(디자인 개편 완료 후) — E3 평가판 만료(8월 말경) 전에! ③ (선택) M3 스트레치. 모바일 드로어는 폐기(2026-08-09)
+
+## Phase 7 이어서 작업 (디자인 개편 + M8 협업 — 1차 완료 상태)
+
+**완료(3f3207d)**: 디자인 토큰(globals.css @theme)·공용 UI(components/ui.tsx)·사이드바 4섹션+메일 배지·협업 라우트 6개 플레이스홀더. 스펙은 requirements M8/R5.1 개정·design.md 디자인 시스템+M8 절에 반영됨.
+
+**필수 참조 문서** (대화 없이 재구성 가능하게 보존됨):
+- [docs/mockup/design-system.md](mockup/design-system.md) — 목업 추출 토큰·컴포넌트 규격 전체 (픽셀 단위)
+- [docs/mockup/feature-map.md](mockup/feature-map.md) — 화면별 상세 구성, B1~B17 신규 항목별 Graph 엔드포인트·난이도·가짜 데이터 대체법
+- docs/mockup/workhub365-mockup.html — 목업 원본(참조용)
+
+**남은 작업 순서 (권장)**:
+1. 기존 화면 디자인 정렬 + 소형 신규: 홈 4열 위젯(최근 문서·공지는 화면 구현 후), 라이선스(+B13 AI 딥링크 버튼), 감사(B11 필터 탭+검색), 온보딩(B14 최근 실행 이력, 칩 UI), 어시스턴트(만료 카운트), 근태/휴가(상단 세그먼트 탭으로 상호 연결 — 통합 대신 탭 결정), 결재 마스터-디테일(B12, 참조 탭은 후순위)
+2. 신규 화면(가치순): 조직도(app-only 재사용+오늘 휴가 배지) → 일정(주간 그리드) → 메일(3패널) → 게시판(posts/post_reads 테이블 신설+시드) → 문서함 → 회의실(리소스 없으면 강등)
+3. 위임 스코프 확장: src/auth.ts scope에 `Calendars.ReadWrite Files.Read Presence.Read.All` 추가(Calendars.Read 대체) — 기존 세션 위젯 강등되므로 확장 화면 구현과 같은 커밋에, 사용자 재로그인 필요
+4. B15 전직원 개방: 도구 minRole + employee 조회 도구 3종(내 연차·내 주간 근무·내 기안 — actor userId 주입) + 게이트 테스트 확장 + 사이드바 AI 섹션 admin 게이트 해제(sidebar.tsx 주석 참조) + assistant 페이지/route 가드 완화
+5. 각 단계: 사이클(테스트→build→실브라우저→리뷰→커밋) 유지. 리뷰는 정확성·컨벤션 2렌즈
+
+**이 대화에서만 알 수 있는 결정** (스펙에 요약됨, 상세):
+- 메신저·Teams 멘션 위젯 제외(R8.7, protected API), 회의실은 리소스 사서함 없으면 강등(사서함 생성은 M365 관리센터 — 사용자 액션)
+- "새 일정"·"업로드"·"답장" 등 쓰기 UX는 딥링크 위임(스코프 최소화) — 예외는 회의실 예약(ReadWrite 필요, 구현하기로 함)
+- 근태·휴가는 페이지 통합 대신 사이드바 단일 메뉴+두 라우트 유지(활성 판정 처리됨), 페이지 상단 세그먼트 탭으로 상호 이동
+- 로컬 dev 로그인: 브라우저에 Microsoft 세션이 살아있으면 로그인 버튼 클릭만으로 자동 SSO됨(자격 증명 불필요) — E2E 때 활용
 - 검증 상태: Vitest 96개 통과, lint/build 클린, CI 녹색, MCP stdio JSON-RPC 실검증, 프로덕션 체크리스트 통과
 
 ## 남은 작업 착수 시 알아야 할 것
