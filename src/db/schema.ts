@@ -206,3 +206,49 @@ export const skuPrices = pgTable("sku_prices", {
   displayName: text("display_name"),
   monthlyPriceKrw: integer("monthly_price_krw").notNull().default(0),
 });
+
+export const postCategoryEnum = pgEnum("post_category", [
+  "notice",
+  "hr",
+  "general_affairs",
+  "free",
+]);
+
+// 게시판 글 (B4/R8.4) — 유일한 자체 콘텐츠 테이블. notice 카테고리·pinned·mustRead는
+// admin 전용 (서버 액션에서 검증). 게시판 쓰기는 관리 액션이 아니므로 감사 로그 대상 아님
+export const posts = pgTable("posts", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  category: postCategoryEnum("category").notNull(),
+  title: text("title").notNull(),
+  body: text("body").notNull(),
+  authorId: uuid("author_id")
+    .notNull()
+    .references(() => users.id),
+  // 목록 상단 고정 (공지)
+  pinned: boolean("pinned").notNull().default(false),
+  // 필독 — post_reads로 확인 이력을 기록한다
+  mustRead: boolean("must_read").notNull().default(false),
+  // 상세 열람 시 increment. 중복 방지 없음 — 데모 수준 (design.md M8)
+  viewCount: integer("view_count").notNull().default(0),
+  createdAt: timestamp("created_at", { withTimezone: true })
+    .notNull()
+    .defaultNow(),
+});
+
+// 필독 확인 이력 — "확인했습니다" 1인 1회 (upsert onConflictDoNothing)
+export const postReads = pgTable(
+  "post_reads",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    postId: uuid("post_id")
+      .notNull()
+      .references(() => posts.id),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id),
+    readAt: timestamp("read_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [uniqueIndex("post_read_uq").on(t.postId, t.userId)],
+);
