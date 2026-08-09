@@ -50,12 +50,23 @@ type ChatItem =
   | { kind: "error"; id: number; text: string }
   | { kind: "notice"; id: number; text: string };
 
-// 추천 프롬프트 칩 (목업 3종) — 클릭 시 입력창만 채운다 (자동 전송 없음)
-const PROMPT_CHIPS = [
-  "다음 주 금요일 연차 신청해줘",
-  "박태호 오프보딩 상태 알려줘",
-  "이번 달 감사 로그 요약해줘",
-];
+type Role = "admin" | "manager" | "employee";
+
+// 추천 프롬프트 칩 — 클릭 시 입력창만 채운다 (자동 전송 없음).
+// R5.1: employee/manager는 본인 조회 도구 3종에 맞는 질문을 제안한다
+const PROMPT_CHIPS: Record<"admin" | "member", string[]> = {
+  // admin 3종은 목업 규격 유지 (연차 신청·오프보딩 상태·감사 로그 요약)
+  admin: [
+    "다음 주 금요일 연차 신청해줘",
+    "박태호 오프보딩 상태 알려줘",
+    "이번 달 감사 로그 요약해줘",
+  ],
+  member: [
+    "내 연차 며칠 남았어?",
+    "이번 주 내 근무시간 알려줘",
+    "내 기안 결재 어디까지 갔어?",
+  ],
+};
 
 /** 서버 에러 코드 → 사용자 안내문 */
 const ERROR_LABELS: Record<string, string> = {
@@ -64,7 +75,7 @@ const ERROR_LABELS: Record<string, string> = {
   BODY_TOO_LARGE:
     "대화 내용이 너무 커졌습니다. '새 대화'로 초기화한 뒤 이어서 질문하세요.",
   INVALID_MESSAGES: "대화 이력이 손상되었습니다. '새 대화'로 초기화해 주세요.",
-  FORBIDDEN: "관리자 권한이 필요합니다.",
+  FORBIDDEN: "세션이 만료되었거나 접근 권한이 없습니다. 다시 로그인해 주세요.",
   ANTHROPIC_API_KEY_MISSING: "서버에 ANTHROPIC_API_KEY가 설정되지 않았습니다.",
 };
 
@@ -73,7 +84,14 @@ function newId() {
   return nextId++;
 }
 
-export function AssistantChat({ initialPrompt }: { initialPrompt?: string }) {
+export function AssistantChat({
+  initialPrompt,
+  role,
+}: {
+  initialPrompt?: string;
+  role: Role;
+}) {
+  const promptChips = PROMPT_CHIPS[role === "admin" ? "admin" : "member"];
   const [items, setItems] = useState<ChatItem[]>([]);
   // ?prompt= 프리필 — 서버(page)에서 받은 초기값으로 입력창만 채운다
   const [input, setInput] = useState(initialPrompt ?? "");
@@ -367,7 +385,7 @@ export function AssistantChat({ initialPrompt }: { initialPrompt?: string }) {
       <div className="border-t border-zinc-200 p-3">
         {/* 추천 프롬프트 칩 — 클릭 시 입력창 채움 (목업 규격: 필 999 · 12px) */}
         <div className="mb-2.5 flex flex-wrap gap-1.5">
-          {PROMPT_CHIPS.map((s) => (
+          {promptChips.map((s) => (
             <button
               key={s}
               type="button"

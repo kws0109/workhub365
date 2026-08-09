@@ -87,9 +87,11 @@ export async function approveAssistantRequest(
   const payload = request.payload as { input?: unknown; summary?: string };
   const summary = payload.summary ?? request.toolName;
 
-  // 게이트 통과 실행 — approvalGranted는 이 클레임 성공 경로에서만 전달된다
+  // 게이트 통과 실행 — approvalGranted는 이 클레임 성공 경로에서만 전달된다.
+  // 승인(변경형 실행)은 admin 전용이므로 actor도 admin 세션이다 (R5.1 현행 유지)
   const out = await executeTool(request.toolName, payload.input, assistantCtx(), {
     approvalGranted: true,
+    actor: { userId: session.user.id, role: session.user.role },
   });
 
   // 실행 이후의 기록 실패가 결과 전달(특히 임시 비밀번호)을 막으면 안 된다.

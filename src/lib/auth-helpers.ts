@@ -22,10 +22,16 @@ export async function requireRole(...roles: Role[]) {
   return session;
 }
 
-/** Server Action/Route Handler용: 역할 미달 시 throw — 조용히 통과시키지 않는다 */
-export async function assertRole(...roles: Role[]) {
+/** Server Action/Route Handler용: 미로그인 시 throw — 역할 무관 로그인만 요구 (R5.1) */
+export async function assertSession() {
   const session = await getSession();
   if (!session?.user?.id) throw new Error("UNAUTHORIZED");
+  return session;
+}
+
+/** Server Action/Route Handler용: 역할 미달 시 throw — 조용히 통과시키지 않는다 */
+export async function assertRole(...roles: Role[]) {
+  const session = await assertSession();
   if (!roles.includes(session.user.role)) throw new Error("FORBIDDEN");
   return session;
 }

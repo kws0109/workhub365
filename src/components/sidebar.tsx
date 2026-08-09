@@ -220,13 +220,11 @@ export function Sidebar({
         <p className="px-3 pb-1 text-xs font-medium text-zinc-400">협업</p>
         {COLLAB_MENU.map(renderItem)}
       </div>
-      {/* R5.1 전직원 개방(B15) 전까지 admin 한정 — 도구 역할 차등이 먼저 필요하다 */}
-      {role === "admin" && (
-        <div className="flex flex-col gap-1">
-          <p className="px-3 pb-1 text-xs font-medium text-zinc-400">AI</p>
-          {AI_MENU.map(renderItem)}
-        </div>
-      )}
+      {/* R5.1 전직원 개방(B15) — 도구는 역할 차등(minRole), 변경형은 admin 승인 필수 */}
+      <div className="flex flex-col gap-1">
+        <p className="px-3 pb-1 text-xs font-medium text-zinc-400">AI</p>
+        {AI_MENU.map(renderItem)}
+      </div>
       {role === "admin" && (
         <div className="flex flex-col gap-1">
           <p className="px-3 pb-1 text-xs font-medium text-zinc-400">관리</p>

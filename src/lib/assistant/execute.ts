@@ -7,7 +7,7 @@ import {
   executeTool,
   getTool,
 } from "../../../packages/mcp-server/src/tools";
-import type { ToolContext } from "../../../packages/mcp-server/src/types";
+import type { Role, ToolContext } from "../../../packages/mcp-server/src/types";
 import { createAssistantOps } from "./ops";
 
 // /api/assistant tool use 루프의 도구 처리부.
@@ -83,9 +83,13 @@ export async function runAssistantToolUse(opts: {
   name: string;
   input: unknown;
   actorId: string;
+  /** 세션 역할 — executeTool의 minRole 게이트 재검증(2차)에 사용 (R5.1) */
+  actorRole: Role;
 }): Promise<ToolUseOutcome> {
-  const { toolUseId, name, input, actorId } = opts;
-  const out = await executeTool(name, input, assistantCtx());
+  const { toolUseId, name, input, actorId, actorRole } = opts;
+  const out = await executeTool(name, input, assistantCtx(), {
+    actor: { userId: actorId, role: actorRole },
+  });
 
   if (out.kind === "approval_required") {
     const expiresAt = expiryFrom(new Date());
@@ -159,16 +163,23 @@ export async function runAssistantToolUse(opts: {
     return { type: "result", ok: true, forModel: out.result, brief, auditOk };
   }
 
+  // actor_required는 웹 경로에선 발생하지 않아야 한다(항상 actor 주입) —
+  // 발생하면 구조 결함이므로 오류로 표면화한다
+  const errorMessage =
+    out.kind === "actor_required"
+      ? "이 도구는 로그인 사용자 컨텍스트가 필요합니다 (서버 구성 오류)"
+      : out.message;
+
   const auditOk = await audit({
     actorId,
     action: `assistant.tool.${name}`,
-    detail: { input, error: out.message },
+    detail: { input, error: errorMessage },
     success: false,
   });
   return {
     type: "result",
     ok: false,
-    forModel: { error: out.message },
+    forModel: { error: errorMessage },
     brief,
     auditOk,
   };

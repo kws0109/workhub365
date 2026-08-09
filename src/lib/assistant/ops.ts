@@ -1,7 +1,7 @@
 import { randomBytes } from "node:crypto";
-import { and, gte, lt, eq } from "drizzle-orm";
+import { and, desc, gte, lt, eq } from "drizzle-orm";
 import { db } from "@/db";
-import { attendanceRecords, users } from "@/db/schema";
+import { attendanceRecords, leaveRequests, proposals, users } from "@/db/schema";
 import {
   getLicenseUsers,
   getSubscribedSkus,
@@ -22,8 +22,14 @@ import {
 import { bustGraphCache } from "@/lib/graph/cache";
 import { calcLicenseWaste } from "@/lib/license-waste";
 import { buildPriceMap } from "@/lib/sku-prices";
-import { aggregateWeeklyMinutes, overtimeLevel, weekStartKst } from "@/lib/attendance";
+import {
+  WEEKLY_OVER_MINUTES,
+  aggregateWeeklyMinutes,
+  overtimeLevel,
+  weekStartKst,
+} from "@/lib/attendance";
 import { generateTempPassword } from "@/lib/lifecycle";
+import { countMyTurnProposals } from "@/lib/proposal-queries";
 import type { ToolContext } from "../../../packages/mcp-server/src/types";
 
 // AI 어시스턴트 도구의 ToolContext 실제 구현.
@@ -175,6 +181,98 @@ export function createAssistantOps(): ToolContext {
 
     async listGroups() {
       return getGroups();
+    },
+
+    // ── 본인 조회형 — userId는 executeTool이 주입한 actor(세션)에서만 온다 ──
+    async getMyLeaveStatus(userId) {
+      const [me] = await db
+        .select({ annualLeaveDays: users.annualLeaveDays })
+        .from(users)
+        .where(eq(users.id, userId))
+        .limit(1);
+      if (!me) throw new Error("사용자 정보를 찾을 수 없습니다");
+      const recent = await db
+        .select({
+          type: leaveRequests.type,
+          startDate: leaveRequests.startDate,
+          endDate: leaveRequests.endDate,
+          days: leaveRequests.days,
+          status: leaveRequests.status,
+        })
+        .from(leaveRequests)
+        .where(eq(leaveRequests.userId, userId))
+        .orderBy(desc(leaveRequests.createdAt))
+        .limit(5);
+      return {
+        remainingDays: Number(me.annualLeaveDays),
+        recentRequests: recent.map((r) => ({
+          type: r.type,
+          startDate: r.startDate,
+          endDate: r.endDate,
+          days: Number(r.days),
+          status: r.status,
+        })),
+      };
+    },
+
+    async getMyWeekAttendance(userId) {
+      const weekStart = weekStartKst(new Date());
+      const weekEnd = addDaysToDateStr(weekStart, 7);
+      const rows = await db
+        .select({
+          date: attendanceRecords.date,
+          checkInAt: attendanceRecords.checkInAt,
+          checkOutAt: attendanceRecords.checkOutAt,
+          workedMinutes: attendanceRecords.workedMinutes,
+        })
+        .from(attendanceRecords)
+        .where(
+          and(
+            eq(attendanceRecords.userId, userId),
+            gte(attendanceRecords.date, weekStart),
+            lt(attendanceRecords.date, weekEnd),
+          ),
+        )
+        .orderBy(attendanceRecords.date);
+      const weeklyMinutes = aggregateWeeklyMinutes(rows, weekStart);
+      return {
+        weekStart,
+        days: rows.map((r) => ({
+          date: r.date,
+          checkInAt: r.checkInAt.toISOString(),
+          checkOutAt: r.checkOutAt?.toISOString() ?? null,
+          workedMinutes: r.workedMinutes,
+        })),
+        weeklyMinutes,
+        remainingMinutesTo52h: Math.max(0, WEEKLY_OVER_MINUTES - weeklyMinutes),
+        level: overtimeLevel(weeklyMinutes),
+      };
+    },
+
+    async getMyProposals(userId) {
+      const [recent, myTurnCount] = await Promise.all([
+        db
+          .select({
+            title: proposals.title,
+            templateKey: proposals.templateKey,
+            status: proposals.status,
+            createdAt: proposals.createdAt,
+          })
+          .from(proposals)
+          .where(eq(proposals.authorId, userId))
+          .orderBy(desc(proposals.createdAt))
+          .limit(5),
+        countMyTurnProposals(userId),
+      ]);
+      return {
+        recent: recent.map((p) => ({
+          title: p.title,
+          templateKey: p.templateKey,
+          status: p.status,
+          createdAt: p.createdAt.toISOString(),
+        })),
+        myTurnCount,
+      };
     },
 
     // ── 변경형 — executeTool의 승인 게이트 통과 후에만 호출된다 ──────────

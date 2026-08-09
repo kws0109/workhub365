@@ -1,17 +1,21 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { after } from "next/server";
-import { assertRole } from "@/lib/auth-helpers";
+import { assertSession } from "@/lib/auth-helpers";
 import { runAssistantToolUse } from "@/lib/assistant/execute";
 import {
-  TOOLS,
   toolInputJsonSchema,
+  toolsForRole,
 } from "../../../../packages/mcp-server/src/tools";
+import type { Role } from "../../../../packages/mcp-server/src/types";
 
 // AI 어시스턴트 tool use 루프 (design.md M5).
 // 사용자 메시지 → Claude API(tools) → tool_use → 서버에서 실행 → tool_result → … → 최종 응답
 // 응답은 NDJSON 스트림: 텍스트 델타·도구 상태·승인 카드 이벤트를 실시간 전달하고,
 // 대화 이력(원본 블록)은 append 이벤트로 클라이언트가 보관해 다음 요청에 되돌려 보낸다.
 // (Sonnet 5는 adaptive thinking 기본 — thinking 블록도 그대로 왕복시켜야 한다)
+//
+// R5.1 개정: 전 직원 개방. 도구 목록은 세션 역할로 필터해 모델에 노출하고(1차),
+// 실행 직전 executeTool이 actor 역할로 minRole을 재검증한다(2차 — execute.ts 경유).
 
 export const maxDuration = 180; // Graph 스로틀 대기 + 다회 도구 루프 감안
 
@@ -19,14 +23,27 @@ const MAX_ROUNDS = 6; // 한 요청에서 허용하는 모델 호출 횟수 (도
 const MAX_MESSAGES = 80;
 const MAX_BODY_CHARS = 400_000;
 
-const SYSTEM_PROMPT = `당신은 WorkHub365의 관리자 AI 어시스턴트입니다. Microsoft 365 테넌트 관리(라이선스·사용자·근태)를 돕습니다. 한국어로, 간결하게 답합니다.
+/** 역할별 시스템 프롬프트 — 공통 규칙 + 역할 컨텍스트(사용 가능한 도구 범위) */
+function systemPromptFor(role: Role): string {
+  const roleContext =
+    role === "admin"
+      ? `요청자는 admin(IT 관리자) 역할입니다. Microsoft 365 테넌트 관리(라이선스·사용자·근태)를 돕습니다.
 
-- 반드시 도구 결과에 근거해 답합니다. 수치를 추측하지 않고, 조회되지 않으면 그렇게 말합니다.
 - 사용자 ID가 필요한 도구는 먼저 find_users로 대상을 특정합니다. 동명이인 등 대상이 모호하면 실행 전에 사용자에게 확인합니다.
 - 변경 작업(계정 생성·차단, 라이선스 회수, 세션 철회, 그룹 제거)은 도구가 approval_required를 반환하며, 화면의 승인 카드에서 관리자가 직접 승인해야 실행됩니다. 당신은 승인을 대신할 수 없습니다. approval_required를 받으면 어떤 요청이 만들어졌는지 한 줄로 요약하고 승인 카드 확인을 안내한 뒤 턴을 마칩니다.
-- 승인된 작업의 실행 결과는 (시스템) 메시지로 전달될 수 있습니다. 그 내용을 근거로 후속 질문에 답합니다.
+- 승인된 작업의 실행 결과는 (시스템) 메시지로 전달될 수 있습니다. 그 내용을 근거로 후속 질문에 답합니다.`
+      : `요청자는 ${role} 역할의 직원입니다. 본인 정보 조회(잔여 연차·이번 주 근무시간·내 기안 현황)를 돕습니다.
+
+- 사용할 수 있는 도구는 본인 정보 조회뿐입니다. 다른 직원의 정보 조회나 변경 작업(계정·라이선스·그룹 등 관리 액션)은 권한이 없으므로, 요청받으면 실행을 시도하지 말고 관리자에게 문의하도록 안내합니다.`;
+
+  return `당신은 WorkHub365의 AI 어시스턴트입니다. 한국어로, 간결하게 답합니다.
+
+${roleContext}
+
+- 반드시 도구 결과에 근거해 답합니다. 수치를 추측하지 않고, 조회되지 않으면 그렇게 말합니다.
 - 금액은 원화(₩), 시간은 한국 표준시 기준으로 표현합니다.
 - 채팅 화면은 마크다운을 렌더링하지 않습니다. 표·굵게(**)·헤더(#) 없이 일반 텍스트로 쓰고, 목록은 "- ", 구분이 필요하면 빈 줄을 사용합니다.`;
+}
 
 type IncomingMessage = { role: "user" | "assistant"; content: unknown };
 
@@ -81,11 +98,13 @@ function validateBody(body: unknown):
 export async function POST(req: Request) {
   let session;
   try {
-    session = await assertRole("admin");
+    // R5.1: 로그인한 전 직원 사용 가능 — 도구는 아래에서 역할별로 필터된다
+    session = await assertSession();
   } catch {
     return Response.json({ error: "FORBIDDEN" }, { status: 403 });
   }
   const actorId = session.user.id;
+  const actorRole: Role = session.user.role;
 
   if (!process.env.ANTHROPIC_API_KEY) {
     return Response.json({ error: "ANTHROPIC_API_KEY_MISSING" }, { status: 500 });
@@ -108,7 +127,8 @@ export async function POST(req: Request) {
 
   const anthropic = new Anthropic();
   const model = process.env.ASSISTANT_MODEL ?? "claude-sonnet-5";
-  const anthropicTools = TOOLS.map((t) => ({
+  // 게이트 1차: 세션 역할이 사용할 수 있는 도구만 모델에 노출한다
+  const anthropicTools = toolsForRole(actorRole).map((t) => ({
     name: t.name,
     description: t.description,
     input_schema: toolInputJsonSchema(t) as Anthropic.Tool["input_schema"],
@@ -139,7 +159,7 @@ export async function POST(req: Request) {
           const msgStream = anthropic.messages.stream({
             model,
             max_tokens: 8192,
-            system: SYSTEM_PROMPT,
+            system: systemPromptFor(actorRole),
             tools: anthropicTools,
             messages,
           });
@@ -187,6 +207,7 @@ export async function POST(req: Request) {
               name: tu.name,
               input: tu.input,
               actorId,
+              actorRole,
             });
             if (!outcome.auditOk) {
               // R5.4 — 감사 기록 실패를 침묵하지 않는다 (lifecycle 관행)
