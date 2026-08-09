@@ -21,6 +21,23 @@ export type TodayEvent = {
   end: { dateTime: string };
 };
 
+/** 주간(월~토 미포함) 일정 — 일정 화면(B2)용. calendarView가 반복 일정을 전개한다 */
+export async function getWeekEvents(
+  token: string,
+  mondayKst: string,
+  endExclusiveKst: string,
+): Promise<TodayEvent[]> {
+  const startUtc = new Date(`${mondayKst}T00:00:00+09:00`).toISOString();
+  const endUtc = new Date(`${endExclusiveKst}T00:00:00+09:00`).toISOString();
+  const path =
+    `/me/calendarView?startDateTime=${startUtc}&endDateTime=${endUtc}` +
+    `&$select=subject,start,end,isAllDay&$orderby=start/dateTime&$top=100`;
+  const page = await delegatedGraphFetch<{ value: TodayEvent[] }>(token, path, {
+    headers: { Prefer: 'outlook.timezone="Asia/Seoul"' },
+  });
+  return page.value;
+}
+
 /** 오늘(KST) 일정 최대 5건 — calendarView는 반복 일정을 전개해 준다 */
 export async function getTodayEvents(
   token: string,
