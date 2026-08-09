@@ -12,7 +12,7 @@
   - Phase 5 / M5 AI 어시스턴트 (2026-08-09): `packages/mcp-server` 도구 10종(단일 소스, stdio 서버 겸용) + `/api/assistant` tool use 루프(NDJSON) + 승인 카드(pending→executing CAS 클레임, 멱등 키, 만료 15분) + 게이트 시나리오 테스트. 실브라우저 E2E: 조회 3종·승인→Graph 실행·거부·감사 로그 4종. 구현 결정·트레이드오프는 design.md M5 절에 기록
   - Phase 6 문서·CI (2026-08-09): GitHub Actions CI(lint+test+build, 시크릿 불필요 — 첫 실행 통과), README 전면 보강(mermaid 2종·의사결정 표·CI 배지), Wiki 현행화, docs/deploy.md(Vercel 절차), docs/demo-script.md(장면 7개 대본)
   - Vercel 프로덕션 배포 (2026-08-09): **https://workhub365-five.vercel.app** — SSO 로그인·홈 위젯(위임 메일 포함)·라이선스 Graph·어시스턴트 승인 게이트 전체 플로·감사 로그 실검증 완료. 첫 배포에서 AUTH_URL이 localhost 기본값 그대로라 로그인 리디렉션이 localhost로 돌아가는 문제 발생 → 환경변수 수정+Redeploy로 해결(deploy.md 함정 절 기록)
-- **남은 것**: ① 데모 영상 녹화(대본 docs/demo-script.md) — E3 평가판 만료(8월 말경) 전에! (사용자 액션) ② (선택) M7 모바일 드로어, M3 스트레치
+- **남은 것**: ① 프로덕트급 디자인 개편(사용자 제공 목업 기준 — 진행 중) ② 데모 영상 녹화(대본 docs/demo-script.md) — E3 평가판 만료(8월 말경) 전에! (사용자 액션) ③ (선택) M3 스트레치. 모바일 드로어는 폐기 결정(2026-08-09)
 - 검증 상태: Vitest 96개 통과, lint/build 클린, CI 녹색, MCP stdio JSON-RPC 실검증, 프로덕션 체크리스트 통과
 
 ## 남은 작업 착수 시 알아야 할 것

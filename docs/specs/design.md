@@ -85,6 +85,25 @@ User.ReadWrite.All, Organization.Read.All, Group.ReadWrite.All, Directory.Read.A
 - 홈 대시보드(R7.4): 위젯 데이터는 단일 병렬 스테이지(Promise.all), 미결 건수는 `countMyTurnProposals`(src/lib/proposal-queries.ts, React cache로 레이아웃과 요청당 1회 공유). admin 위젯(낭비 KPI+감사 로그)은 Graph 호출이 느릴 수 있어 Suspense로 스트리밍하고, Graph 실패 시 해당 위젯만 오류 강등(페이지 전체를 죽이지 않음). 출퇴근 액션은 근태 화면과 동일 서버 액션 재사용 + `revalidatePath("/")` 추가
 - M365 위젯(안읽은 메일·오늘 일정): 위임 스코프 `Mail.Read`·`Calendars.Read`·`offline_access`로 구현. **위임 토큰은 Auth.js JWT(암호화 쿠키)에만 보관하고 session 콜백에는 싣지 않는다** — session에 실으면 `/api/auth/session`으로 브라우저에 노출된다. 읽기는 서버 전용 `lib/graph/delegated.ts`가 쿠키를 직접 복호화(`next-auth/jwt` decode, salt=쿠키명, `.0/.1` 청크 재조립). 만료 시 리프레시 토큰으로 갱신하되 RSC에서는 쿠키 재기록이 불가하므로 결과는 oid 키 인메모리 캐시로 재사용. 갱신 실패·구세션(스코프 없음)은 null → 위젯이 "재로그인 안내"로 강등되고 페이지는 계속 동작. app-only 토큰으로 개인 메일을 읽는 것은 인증 2층 원칙 위반이므로 금지
 
+### 디자인 시스템 (2026-08-09 — 사용자 제공 목업 채택)
+
+- **진실의 원천**: 사용자 제공 목업(클로드 아티팩트). 추출된 토큰·컴포넌트 규격은 `src/app/globals.css`의 `@theme`이 단일 소스
+- 방향: **라이트 단일, 무섀도** — 깊이는 보더(`zinc-200`)+배경 대비로만. 카드 radius 12px/컨트롤 8px/필 999px. 포인트 컬러는 모노크롬(`zinc-900` = primary), 상태색은 Tailwind 기본(emerald/amber/red/blue) 그대로
+- 타이포: Geist 400~700(기존 next/font 유지, 한글 폴백 스택 명시), 숫자는 전부 `tabular-nums`, 큰 제목 `tracking -0.02em`. 모노는 기술 식별자(액션명·JSON·도구명) 전용
+- 셸: 흰 사이드바 224px(섹션 4개: 내 업무/협업/AI/관리 + M365 링크 + 사용자 푸터), 상단 헤더 없음, 콘텐츠 패딩 32px·페이지별 max-width(920~1240)
+- 아이콘: 인라인 SVG stroke 1.5 현행 유지 (외부 라이브러리 미도입)
+- 공용 컴포넌트로 추출: Card, StatTile, Badge, SourceChip(연동 출처), Avatar(이니셜+프레즌스), 테이블 행 패턴
+
+### M8 협업 (2026-08-09)
+
+- **위임 스코프 확장**: `Mail.Read`(기존)·`Calendars.ReadWrite`(Read에서 승격 — 회의실 예약용)·`Files.Read`·`Presence.Read.All` 추가. 기존 세션은 위젯 강등 → 재로그인 동의로 회복(M7 위임 토큰 경로 재사용)
+- 메일/일정/문서함/최근문서: `lib/graph/delegated.ts` 경유 읽기 전용. 각 화면은 토큰 없음/스코프 부족 시 재로그인 안내 카드로 강등
+- 조직도: app-only `getDirectoryUsers()` 부서 그룹핑 + 오늘 승인 휴가(leave_requests) 조인 배지. 프레즌스는 위임 `/communications/getPresencesByUserId` 배치 조회(100명 상한), 실패 시 회색
+- 게시판: 신규 테이블 `posts`(카테고리 enum, pinned, mustRead, viewCount) + `post_reads`(필독 확인 이력, (postId,userId) 유니크). 조회수는 상세 열람 시 increment(중복 방지 없음 — 데모 수준 명시)
+- 회의실: app-only `/places/microsoft.graph.room` 목록 + 위임 `getSchedule` 가용성 + 위임 이벤트 생성(회의실 attendee, `Calendars.ReadWrite`). 리소스 사서함 0개면 세팅 가이드 카드로 강등
+- **메신저 제외 근거**: Teams 채팅 본문 protected API(CLAUDE.md 알려진 제약). 자체 DB 채팅은 "M365 위에 얹는다" 정체성에 반해 만들지 않는다
+- M5 전직원 개방: MCP 도구에 `minRole`(employee|manager|admin) 부여, `/api/assistant`가 세션 역할로 도구 목록 필터 + `executeTool`에 역할 게이트 2중화. employee용 신규 조회 도구(내 연차·내 주간 근무·내 기안 현황)는 actor 컨텍스트(userId) 주입 — 타인 정보 조회 불가를 게이트 테스트에 추가
+
 ## 오류 처리 원칙
 
 - Graph 호출은 얇은 래퍼로 감싸 429(throttle) 재시도(Retry-After 존중), 403은 "권한 부족: {필요 scope}"로 변환

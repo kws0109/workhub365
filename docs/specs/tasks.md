@@ -47,13 +47,27 @@ Phase 단위로 브랜치 → PR. 완료 시 체크.
 - [x] M365 앱 바로가기 섹션 (딥링크 새 탭, 낮은 시각 위계, 임베드 금지)
 - [x] 홈 대시보드 위젯 그리드 (자체 데이터) — 근무 카드(출퇴근 액션)·내 차례 결재·잔여 연차·주간 근무 게이지·내 기안 최근 + admin: 낭비 KPI·최근 감사 로그 (Suspense 스트리밍, 실브라우저 E2E 검증)
 - [x] 홈 M365 위젯 (안읽은 메일/오늘 일정) — 위임 스코프 확장 + 서버 전용 토큰 헬퍼(쿠키 JWT 복호화·리프레시) + 재로그인 동의 완료. 메일 위젯 실값 E2E 검증, 일정은 쿼리 정상(200)·목록 표시는 실이벤트 미검증(app-only Calendars 권한 미부여로 테스트 이벤트 생성 불가)
-- [ ] (후속) 모바일: 상단 바 + 햄버거 드로어
+- ~~(후속) 모바일: 상단 바 + 햄버거 드로어~~ — 폐기 (2026-08-09, 데모 일정 우선. 데스크톱 데모에 모바일 뷰 불필요)
 
 ## Phase 5 — M5 AI 어시스턴트
 - [x] packages/mcp-server: 도구 정의(조회형 5 + 변경형 5) + stdio 실행 — JSON-RPC(initialize→tools/list) 실검증, 변경형은 stdio에서 승인 안내만 반환
 - [x] /api/assistant tool use 루프(스트리밍) — NDJSON, 원본 블록 왕복, refusal/max_tokens 분기
 - [x] 승인 카드 UI + approval_requests 흐름 — executing CAS 클레임(실행-정확히-1회), 멱등 키, 만료 15분. 실브라우저 E2E(승인→Graph 실행, 거부)
 - [x] 승인 게이트 시나리오 테스트 — 변경형 전체 approval_required, 조회형 부수효과 전무, R5.3 커버리지 (테스트 31개 추가, 총 96개)
+
+## Phase 7 — 디자인 개편 + M8 협업 (2026-08-09 추가, 목업 기준)
+
+- [ ] 디자인 코어: globals.css @theme 토큰(목업 추출값) + 공용 컴포넌트(Card/StatTile/Badge/SourceChip/Avatar) + 셸·사이드바 개편(협업 섹션, 메일 배지, 사용자 푸터)
+- [ ] 기존 화면 디자인 정렬: 홈(4열 위젯) / 라이선스(+AI 일괄 회수 딥링크) / 근태·휴가 / 결재(마스터-디테일) / 온보딩(칩 UI + 최근 실행 이력) / 감사(필터 탭+검색) / 어시스턴트(만료 카운트)
+- [ ] 신규: 조직도(부서 트리+인물 카드+휴가 배지+프레즌스 강등)
+- [ ] 신규: 일정(주간 타임 그리드, calendarView)
+- [ ] 신규: 메일(3패널 읽기, Mail.Read)
+- [ ] 신규: 게시판(posts/post_reads 테이블, 탭·고정·필독·조회수·인기)
+- [ ] 신규: 문서함(OneDrive 읽기, Files.Read) + 홈 최근 문서·최근 공지 위젯
+- [ ] 신규: 회의실 예약(places+getSchedule+이벤트 생성, 리소스 없으면 강등)
+- [ ] M5 전직원 개방: 도구 minRole 매트릭스 + employee 조회 도구 3종 + 게이트 테스트 확장
+- [ ] 위임 스코프 확장(Calendars.ReadWrite·Files.Read·Presence.Read.All) + 재로그인 동의 검증
+- [ ] 메신저·Teams 멘션 위젯 제외 (protected API — R8.7 결정)
 
 ## Phase 6 — 마무리
 - [x] GitHub Actions CI(lint + test + build) — 시크릿 불필요(.env 없는 빌드 사전 검증), 첫 실행 전 단계 통과
