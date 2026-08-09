@@ -22,7 +22,9 @@ export const metadata = { title: "조직도" };
 // 조직도(B3, R8.3) — app-only 디렉터리 실데이터 + 오늘 승인 휴가 배지(자체 DB 조인).
 // 프레즌스는 위임 Presence.Read.All — 미동의·실패 시 회색(offline) 강등.
 
-const LEAVE_LABEL = { annual: "휴가", half: "반차", sick: "병가" } as const;
+// 배지 문구는 유형 무관 단일값이다 (R8.3 원문). 병가를 이름표로 노출하면 전사
+// 디렉터리에 건강정보가 실리고, /leave가 부서 범위로 좁혀 둔 정보가 여기로 샌다
+const LEAVE_BADGE = "휴가";
 const NO_DEPT = "부서 미지정";
 
 type Person = DirectoryUser & { dept: string };
@@ -54,8 +56,8 @@ export default async function OrgPage({
     ),
     db.query.users.findFirst({ where: eq(users.id, session.user.id) }),
     db
+      // type을 읽지 않는다 — 배지가 유형을 구분하지 않으므로 수집할 이유가 없다(최소 수집)
       .select({
-        type: leaveRequests.type,
         entraId: users.entraId,
         email: users.email,
       })
@@ -111,9 +113,8 @@ export default async function OrgPage({
   // 오늘 승인 휴가 배지 — DB 사용자와 디렉터리는 entraId(oid) 우선, 이메일=UPN 예비로 매칭
   const leaveByKey = new Map<string, string>();
   for (const l of todayLeaves) {
-    const label = LEAVE_LABEL[l.type];
-    if (l.entraId) leaveByKey.set(l.entraId, label);
-    leaveByKey.set(l.email.toLowerCase(), label);
+    if (l.entraId) leaveByKey.set(l.entraId, LEAVE_BADGE);
+    leaveByKey.set(l.email.toLowerCase(), LEAVE_BADGE);
   }
   const leaveOf = (p: Person) =>
     leaveByKey.get(p.id) ?? leaveByKey.get(p.userPrincipalName.toLowerCase());

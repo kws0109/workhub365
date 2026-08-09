@@ -193,7 +193,8 @@ export function FileTypeIcon({ ext, size = 20 }: { ext: string; size?: number })
       className={`inline-flex shrink-0 items-center justify-center rounded-md font-bold text-white ${color}`}
       style={{ width: size, height: size, fontSize: Math.max(7, size * 0.35) }}
     >
-      {key.replace("x", "").slice(0, 3).toUpperCase()}
+      {/* 끝의 x만 떼서 xlsx→XLS, docx→DOC. replace("x","")는 첫 x를 지워 xlsx가 LSX가 된다 */}
+      {key.replace(/x$/, "").slice(0, 3).toUpperCase()}
     </span>
   );
 }
