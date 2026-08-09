@@ -1,4 +1,3 @@
-import Link from "next/link";
 import { and, desc, eq } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
 import { db } from "@/db";
@@ -6,11 +5,21 @@ import { proposalApprovers, proposals, users } from "@/db/schema";
 import { requireSession } from "@/lib/auth-helpers";
 import { formatDateTimeKst } from "@/lib/format";
 import { getTemplate } from "@/lib/proposal";
+import { Badge, Card } from "@/components/ui";
+import { ProposalMasterCard } from "@/components/proposals/master-card";
+import { ProposalDetail } from "@/components/proposals/proposal-detail";
 
 export const metadata = { title: "결재함" };
 
-export default async function ProposalInboxPage() {
+// B12 마스터-디테일 — 내 차례 문서 리스트 + 상세·결재 액션을 한 화면에서 처리한다.
+// 선택은 ?sel=<id>(기본: 첫 항목), 서버 컴포넌트 유지
+export default async function ProposalInboxPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ sel?: string }>;
+}) {
   const session = await requireSession();
+  const { sel } = await searchParams;
 
   const author = alias(users, "author");
   // 내가 현재 차례(step = currentStep)의 대기 결재자인 기안
@@ -37,31 +46,43 @@ export default async function ProposalInboxPage() {
     )
     .orderBy(desc(proposals.createdAt));
 
+  // 결재 처리 직후처럼 sel이 목록 밖이어도 디테일은 처리 결과를 계속 보여준다 (빈 문자열은 기본값으로)
+  const selId = sel || rows[0]?.id;
+
   return (
-    <div className="space-y-2">
-      {rows.length === 0 && (
-        <div className="rounded-xl border border-dashed border-zinc-300 bg-white p-10 text-center text-sm text-zinc-400">
-          결재 대기 중인 기안이 없습니다
-        </div>
-      )}
-      {rows.map((r) => (
-        <Link
-          key={r.id}
-          href={`/proposals/${r.id}`}
-          className="flex items-center justify-between rounded-xl border border-zinc-200 bg-white px-4 py-3 transition hover:border-zinc-400"
-        >
-          <div>
-            <p className="text-sm font-medium">{r.title}</p>
-            <p className="mt-0.5 text-xs text-zinc-400">
-              {getTemplate(r.templateKey)?.name ?? r.templateKey} · {r.authorName}
-              {r.authorDept && ` (${r.authorDept})`} · {formatDateTimeKst(r.createdAt)}
-            </p>
+    <div className="grid grid-cols-1 items-start gap-4 lg:grid-cols-[360px_minmax(0,1fr)]">
+      <div className="flex flex-col gap-2">
+        {rows.length === 0 && (
+          <div className="rounded-[10px] border border-dashed border-line-strong bg-surface p-8 text-center text-sm text-ink-muted">
+            결재 대기 중인 기안이 없습니다
           </div>
-          <span className="shrink-0 rounded-full bg-amber-50 px-2 py-0.5 text-xs font-medium text-amber-700">
-            {r.currentStep}차 결재 차례
-          </span>
-        </Link>
-      ))}
+        )}
+        {rows.map((r) => (
+          <ProposalMasterCard
+            key={r.id}
+            href={`/proposals/inbox?sel=${r.id}`}
+            selected={r.id === selId}
+            title={r.title}
+            meta={`${getTemplate(r.templateKey)?.name ?? r.templateKey} · ${r.authorName}${
+              r.authorDept ? ` (${r.authorDept})` : ""
+            } · ${formatDateTimeKst(r.createdAt)}`}
+            badge={<Badge tone="warn">{r.currentStep}차 차례</Badge>}
+          />
+        ))}
+      </div>
+      <div className="min-w-0">
+        {selId ? (
+          <ProposalDetail
+            proposalId={selId}
+            viewerId={session.user.id}
+            viewerRole={session.user.role}
+          />
+        ) : (
+          <Card className="p-10 text-center text-sm text-ink-muted">
+            좌측 목록에서 문서를 선택하세요
+          </Card>
+        )}
+      </div>
     </div>
   );
 }

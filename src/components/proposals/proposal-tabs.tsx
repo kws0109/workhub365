@@ -1,38 +1,32 @@
 "use client";
 
-import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { TabLink } from "@/components/ui";
 
+// B12 탭 — 결재함/내 기안. 참조 탭은 후순위(feature-map 결정), 기안 작성은
+// 헤더의 primary 버튼으로 이동했다. 상세는 리다이렉트 라우트라 별도 활성 규칙 불필요
 const TABS = [
-  { href: "/proposals", label: "내 기안" },
-  { href: "/proposals/new", label: "기안 작성" },
   { href: "/proposals/inbox", label: "결재함" },
+  { href: "/proposals", label: "내 기안" },
 ] as const;
 
 export function ProposalTabs() {
   const pathname = usePathname();
   return (
-    <nav className="mt-4 flex gap-1 border-b border-zinc-200">
-      {TABS.map((t) => {
-        // 상세(/proposals/[id])는 결재함에서도 진입하므로 어느 탭도 활성화하지 않는다
-        const active =
-          t.href === "/proposals"
-            ? pathname === "/proposals"
-            : pathname.startsWith(t.href);
-        return (
-          <Link
-            key={t.href}
-            href={t.href}
-            className={`-mb-px border-b-2 px-4 py-2 text-sm font-medium transition ${
-              active
-                ? "border-zinc-900 text-zinc-900"
-                : "border-transparent text-zinc-400 hover:text-zinc-600"
-            }`}
-          >
-            {t.label}
-          </Link>
-        );
-      })}
+    <nav className="flex gap-1">
+      {TABS.map((t) => (
+        <TabLink
+          key={t.href}
+          href={t.href}
+          active={
+            t.href === "/proposals"
+              ? pathname === "/proposals"
+              : pathname.startsWith(t.href)
+          }
+        >
+          {t.label}
+        </TabLink>
+      ))}
     </nav>
   );
 }

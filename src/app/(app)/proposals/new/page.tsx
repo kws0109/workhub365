@@ -20,10 +20,13 @@ export default async function NewProposalPage() {
   });
 
   return (
-    <ProposalForm
-      action={createProposal}
-      author={toLike(me)}
-      allUsers={allUsers.map(toLike)}
-    />
+    // B12 셸(max-w 1240) 안에서 폼은 읽기 좋은 폭으로 제한한다
+    <div className="max-w-3xl">
+      <ProposalForm
+        action={createProposal}
+        author={toLike(me)}
+        allUsers={allUsers.map(toLike)}
+      />
+    </div>
   );
 }

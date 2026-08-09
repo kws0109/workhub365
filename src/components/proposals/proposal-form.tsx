@@ -35,11 +35,11 @@ export function ProposalForm({
             key={t.key}
             type="button"
             onClick={() => setTemplate(t)}
-            className="rounded-xl border border-zinc-200 bg-white p-5 text-left transition hover:border-zinc-400"
+            className="rounded-xl border border-line bg-surface p-5 text-left transition hover:border-ink-muted"
           >
             <p className="font-semibold">{t.name}</p>
-            <p className="mt-1 text-sm text-zinc-500">{t.description}</p>
-            <p className="mt-2 text-xs text-zinc-400">
+            <p className="mt-1 text-sm text-ink-secondary">{t.description}</p>
+            <p className="mt-2 text-xs text-ink-muted">
               기본 결재선:{" "}
               {t.defaultLine
                 .map((r) => (r === "dept_manager" ? "부서 매니저" : "관리자"))
@@ -121,25 +121,25 @@ function TemplateForm({
           <button
             type="button"
             onClick={onBack}
-            className="text-xs text-zinc-400 underline-offset-2 hover:underline"
+            className="text-xs text-ink-muted underline-offset-2 hover:underline"
           >
             ← 다른 유형 선택
           </button>
         </div>
 
-        <div className="mt-4 space-y-3 rounded-xl border border-zinc-200 bg-white p-5">
+        <div className="mt-4 space-y-3 rounded-xl border border-line bg-surface p-5">
           <label className="block">
-            <span className="mb-1 block text-xs font-medium text-zinc-500">제목</span>
+            <span className="mb-1 block text-xs font-medium text-ink-secondary">제목</span>
             <input
               name="title"
               required
               defaultValue={`${template.name} - ${author.name}`}
-              className="w-full rounded-lg border border-zinc-200 px-3 py-2 text-sm"
+              className="w-full rounded-lg border border-line px-3 py-2 text-sm"
             />
           </label>
           {template.fields.map((f) => (
             <label key={f.key} className="block">
-              <span className="mb-1 block text-xs font-medium text-zinc-500">
+              <span className="mb-1 block text-xs font-medium text-ink-secondary">
                 {f.label}
                 {f.required && <span className="text-red-500"> *</span>}
               </span>
@@ -149,13 +149,13 @@ function TemplateForm({
                   required={f.required}
                   rows={3}
                   placeholder={f.placeholder}
-                  className="w-full rounded-lg border border-zinc-200 px-3 py-2 text-sm"
+                  className="w-full rounded-lg border border-line px-3 py-2 text-sm"
                 />
               ) : f.type === "select" ? (
                 <select
                   name={`field:${f.key}`}
                   required={f.required}
-                  className="w-full rounded-lg border border-zinc-200 px-3 py-2 text-sm"
+                  className="w-full rounded-lg border border-line px-3 py-2 text-sm"
                 >
                   <option value="">선택…</option>
                   {f.options?.map((o) => (
@@ -171,7 +171,7 @@ function TemplateForm({
                   required={f.required}
                   min={f.type === "number" ? 0 : undefined}
                   placeholder={f.placeholder}
-                  className="w-full rounded-lg border border-zinc-200 px-3 py-2 text-sm"
+                  className="w-full rounded-lg border border-line px-3 py-2 text-sm"
                 />
               )}
             </label>
@@ -179,9 +179,9 @@ function TemplateForm({
         </div>
 
         {/* 결재선 편집기 */}
-        <div className="mt-4 rounded-xl border border-zinc-200 bg-white p-5">
+        <div className="mt-4 rounded-xl border border-line bg-surface p-5">
           <h3 className="text-sm font-semibold">결재선</h3>
-          <p className="mt-0.5 text-xs text-zinc-400">
+          <p className="mt-0.5 text-xs text-ink-muted">
             유형에 따라 자동 구성되며, 순서 변경·추가·삭제할 수 있습니다 (1차부터 순서대로 결재)
           </p>
           <ol className="mt-3 space-y-1.5">
@@ -193,22 +193,22 @@ function TemplateForm({
             {line.map((u, i) => (
               <li
                 key={u.id}
-                className="flex items-center gap-2 rounded-lg border border-zinc-100 px-3 py-1.5 text-sm"
+                className="flex items-center gap-2 rounded-lg border border-fill px-3 py-1.5 text-sm"
               >
-                <span className="w-8 shrink-0 text-xs font-semibold text-zinc-400">
+                <span className="w-8 shrink-0 text-xs font-semibold text-ink-muted">
                   {i + 1}차
                 </span>
                 <span className="flex-1">
                   {u.name}
-                  <span className="ml-1 text-xs text-zinc-400">
+                  <span className="ml-1 text-xs text-ink-muted">
                     {u.department ?? "—"} ·{" "}
                     {u.role === "admin" ? "관리자" : u.role === "manager" ? "매니저" : "직원"}
                   </span>
                 </span>
                 <button type="button" onClick={() => move(i, -1)} disabled={i === 0}
-                  className="rounded px-1.5 text-zinc-400 hover:bg-zinc-100 disabled:opacity-30">↑</button>
+                  className="rounded px-1.5 text-ink-muted hover:bg-fill disabled:opacity-30">↑</button>
                 <button type="button" onClick={() => move(i, 1)} disabled={i === line.length - 1}
-                  className="rounded px-1.5 text-zinc-400 hover:bg-zinc-100 disabled:opacity-30">↓</button>
+                  className="rounded px-1.5 text-ink-muted hover:bg-fill disabled:opacity-30">↓</button>
                 <button
                   type="button"
                   onClick={() => setLine((prev) => prev.filter((x) => x.id !== u.id))}
@@ -223,7 +223,7 @@ function TemplateForm({
             <select
               value={addId}
               onChange={(e) => setAddId(e.target.value)}
-              className="rounded-lg border border-zinc-200 px-3 py-1.5 text-sm"
+              className="rounded-lg border border-line px-3 py-1.5 text-sm"
             >
               <option value="">결재자 추가…</option>
               {candidates.map((u) => (
@@ -240,7 +240,7 @@ function TemplateForm({
                 if (u) setLine((prev) => [...prev, u]);
                 setAddId("");
               }}
-              className="rounded-lg border border-zinc-300 px-3 py-1.5 text-sm hover:bg-zinc-50 disabled:opacity-40"
+              className="rounded-lg border border-line-strong px-3 py-1.5 text-sm hover:bg-canvas disabled:opacity-40"
             >
               추가
             </button>
@@ -253,7 +253,7 @@ function TemplateForm({
         <button
           type="submit"
           disabled={line.length === 0 || pending}
-          className="mt-4 rounded-lg bg-zinc-900 px-5 py-2.5 text-sm font-medium text-white hover:bg-zinc-700 disabled:opacity-40"
+          className="mt-4 rounded-lg bg-ink px-5 py-2.5 text-sm font-medium text-white hover:bg-ink-body disabled:opacity-40"
         >
           {pending ? "상신 중…" : "결재 요청"}
         </button>

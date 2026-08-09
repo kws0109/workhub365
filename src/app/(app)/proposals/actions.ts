@@ -95,6 +95,7 @@ export async function createProposal(
   }
 
   revalidatePath("/proposals");
+  revalidatePath("/proposals/inbox");
   return { ok: true };
 }
 
@@ -187,8 +188,9 @@ export async function decideProposal(
     return { error: e instanceof Error ? e.message : "처리에 실패했습니다" };
   }
 
+  // B12: 상세는 마스터-디테일 화면(?sel)로 통합 — 두 목록 라우트를 갱신한다
   revalidatePath("/proposals");
-  revalidatePath(`/proposals/${proposalId}`);
+  revalidatePath("/proposals/inbox");
   return { ok: true };
 }
 
@@ -249,8 +251,9 @@ export async function cancelProposal(
     return { error: e instanceof Error ? e.message : "처리에 실패했습니다" };
   }
 
+  // B12: 상세는 마스터-디테일 화면(?sel)로 통합 — 두 목록 라우트를 갱신한다
   revalidatePath("/proposals");
-  revalidatePath(`/proposals/${proposalId}`);
+  revalidatePath("/proposals/inbox");
   return { ok: true };
 }
 
@@ -293,7 +296,8 @@ export async function adminForceReject(
     return { error: e instanceof Error ? e.message : "처리에 실패했습니다" };
   }
 
+  // B12: 상세는 마스터-디테일 화면(?sel)로 통합 — 두 목록 라우트를 갱신한다
   revalidatePath("/proposals");
-  revalidatePath(`/proposals/${proposalId}`);
+  revalidatePath("/proposals/inbox");
   return { ok: true };
 }
