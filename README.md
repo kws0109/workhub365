@@ -123,12 +123,32 @@ sequenceDiagram
 
 더 깊은 내용: [design.md](docs/specs/design.md) · [Wiki Architecture](../../wiki/Architecture) · 리뷰에서 잡힌 결함과 교훈은 [Wiki Development-Log](../../wiki/Development-Log)
 
+## 화면
+
+실제 Microsoft 365 테넌트(E3)에 연결한 상태에서 촬영했습니다.
+
+| 홈 대시보드 | 라이선스 낭비 |
+|---|---|
+| ![홈 대시보드](public/screenshots/home.png) | ![라이선스 낭비 대시보드](public/screenshots/licenses.png) |
+
+**AI 어시스턴트 승인 게이트** — 라이선스 회수 요청이 즉시 실행되지 않고 승인 카드로 멈춥니다. 대상은 GUID가 아니라 이름으로 표시됩니다.
+
+![AI 어시스턴트 승인 카드](public/screenshots/assistant-approval.png)
+
+| 휴가 캘린더 | 조직도 (프레즌스·휴가 배지) |
+|---|---|
+| ![휴가 캘린더](public/screenshots/leave.png) | ![조직도](public/screenshots/org.png) |
+
+| 인사 정정 (사유 필수·감사) | 감사 로그 (전후 스냅샷) |
+|---|---|
+| ![인사 정정 화면](public/screenshots/hr-correct.png) | ![감사 로그](public/screenshots/audit.png) |
+
 ## 데모
 
 - **제품 소개 페이지**: https://kws0109.github.io/workhub365/ — 화면과 기능을 한 페이지로 (로그인 불필요)
 - **라이브**: https://workhub365-five.vercel.app — 데모 테넌트(`workhub0109.onmicrosoft.com`) 구성원만 로그인 가능합니다 (Entra SSO 전용, 외부 계정은 fail-closed로 거부)
 - **시나리오 대본**: [docs/demo-script.md](docs/demo-script.md) — 라이선스 낭비 발견 → 어시스턴트로 회수(승인 게이트) → 오프보딩 → 휴가/기안 결재 흐름
-- **영상·화면 캡처**: 준비 중 — 촬영 목록과 README 삽입 위치는 [docs/screenshot-guide.md](docs/screenshot-guide.md)
+- **영상**: 준비 중 — 시나리오는 위 대본 참조
 - 실제 M365 테넌트(E3 25석)에 연결해 개발·검증했습니다. mock 데이터가 아닙니다
 
 ## 시작하기

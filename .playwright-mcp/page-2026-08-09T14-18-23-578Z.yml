@@ -1,0 +1,74 @@
+- generic [active] [ref=f13e1]:
+  - generic [ref=f13e2]:
+    - complementary [ref=f13e3]:
+      - generic [ref=f13e4]: WorkHub365
+      - navigation [ref=f13e5]:
+        - generic [ref=f13e6]:
+          - paragraph [ref=f13e7]: 내 업무
+          - link "홈" [ref=f13e8] [cursor=pointer]:
+            - /url: /
+          - link "메일 2" [ref=f13e12] [cursor=pointer]:
+            - /url: /mail
+            - text: 메일
+            - generic [ref=f13e16]: "2"
+          - link "일정" [ref=f13e17] [cursor=pointer]:
+            - /url: /calendar
+          - link "전자결재" [ref=f13e21] [cursor=pointer]:
+            - /url: /proposals
+          - link "근태·휴가" [ref=f13e25] [cursor=pointer]:
+            - /url: /attendance
+        - generic [ref=f13e29]:
+          - paragraph [ref=f13e30]: 협업
+          - link "게시판·공지" [ref=f13e31] [cursor=pointer]:
+            - /url: /board
+          - link "문서함" [ref=f13e35] [cursor=pointer]:
+            - /url: /files
+          - link "회의실 예약" [ref=f13e38] [cursor=pointer]:
+            - /url: /rooms
+          - link "조직도" [ref=f13e43] [cursor=pointer]:
+            - /url: /org
+        - generic [ref=f13e49]:
+          - paragraph [ref=f13e50]: AI
+          - link "AI 어시스턴트" [ref=f13e51] [cursor=pointer]:
+            - /url: /assistant
+        - generic [ref=f13e55]:
+          - paragraph [ref=f13e56]: 관리
+          - link "라이선스" [ref=f13e57] [cursor=pointer]:
+            - /url: /licenses
+          - link "온보딩/오프보딩" [ref=f13e60] [cursor=pointer]:
+            - /url: /lifecycle
+          - link "감사 로그" [ref=f13e64] [cursor=pointer]:
+            - /url: /audit
+        - generic [ref=f13e68]:
+          - paragraph [ref=f13e69]: M365 앱
+          - link [ref=f13e70] [cursor=pointer]:
+            - /url: https://outlook.office.com/mail/
+          - link [ref=f13e78] [cursor=pointer]:
+            - /url: https://teams.microsoft.com/
+          - link [ref=f13e85] [cursor=pointer]:
+            - /url: https://www.office.com/launch/onedrive
+          - link [ref=f13e92] [cursor=pointer]:
+            - /url: https://planner.cloud.microsoft/
+      - generic [ref=f13e100]:
+        - paragraph [ref=f13e101]: 김 우성
+        - paragraph [ref=f13e102]: 개발 · 관리자
+        - button "로그아웃" [ref=f13e104]
+    - main [ref=f13e105]:
+      - generic [ref=f13e106]:
+        - generic [ref=f13e107]:
+          - generic [ref=f13e108]:
+            - heading "AI 어시스턴트" [level=1] [ref=f13e109]
+            - generic [ref=f13e110]: Claude · MCP 도구 13종
+          - generic [ref=f13e113]: 대화는 서버에 저장되지 않습니다
+        - generic [ref=f13e115]:
+          - paragraph [ref=f13e118]: 무엇을 도와드릴까요? 아래 추천 프롬프트를 눌러 시작해 보세요 — 조회는 즉시, 변경 작업은 승인 후 실행됩니다.
+          - generic [ref=f13e119]:
+            - generic [ref=f13e120]:
+              - button "다음 주 금요일 연차 신청해줘" [ref=f13e121]
+              - button "박태호 오프보딩 상태 알려줘" [ref=f13e122]
+              - button "이번 달 감사 로그 요약해줘" [ref=f13e123]
+            - generic [ref=f13e124]:
+              - 'textbox "예: 영업팀에서 최근 30일 미사용 계정 찾아줘" [ref=f13e125]': 윤지호 E3 라이선스 회수해줘
+              - button "보내기" [ref=f13e126]
+        - paragraph [ref=f13e127]: 변경형 액션(계정 생성·차단, 라이선스 회수, 세션 철회, 그룹 제거)은 승인 카드를 거쳐야만 실행됩니다
+  - button "Open Next.js Dev Tools" [ref=f13e133] [cursor=pointer]

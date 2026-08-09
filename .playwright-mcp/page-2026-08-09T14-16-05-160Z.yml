@@ -1,0 +1,160 @@
+- generic [active] [ref=f7e1]:
+  - generic [ref=f7e2]:
+    - complementary [ref=f7e3]:
+      - generic [ref=f7e4]: WorkHub365
+      - navigation [ref=f7e5]:
+        - generic [ref=f7e6]:
+          - paragraph [ref=f7e7]: 내 업무
+          - link "홈" [ref=f7e8] [cursor=pointer]:
+            - /url: /
+          - link "메일 2" [ref=f7e12] [cursor=pointer]:
+            - /url: /mail
+            - text: 메일
+            - generic [ref=f7e16]: "2"
+          - link "일정" [ref=f7e17] [cursor=pointer]:
+            - /url: /calendar
+          - link "전자결재" [ref=f7e21] [cursor=pointer]:
+            - /url: /proposals
+          - link "근태·휴가" [ref=f7e25] [cursor=pointer]:
+            - /url: /attendance
+        - generic [ref=f7e29]:
+          - paragraph [ref=f7e30]: 협업
+          - link "게시판·공지" [ref=f7e31] [cursor=pointer]:
+            - /url: /board
+          - link "문서함" [ref=f7e35] [cursor=pointer]:
+            - /url: /files
+          - link "회의실 예약" [ref=f7e38] [cursor=pointer]:
+            - /url: /rooms
+          - link "조직도" [ref=f7e43] [cursor=pointer]:
+            - /url: /org
+        - generic [ref=f7e49]:
+          - paragraph [ref=f7e50]: AI
+          - link "AI 어시스턴트" [ref=f7e51] [cursor=pointer]:
+            - /url: /assistant
+        - generic [ref=f7e55]:
+          - paragraph [ref=f7e56]: 관리
+          - link "라이선스" [ref=f7e57] [cursor=pointer]:
+            - /url: /licenses
+          - link "온보딩/오프보딩" [ref=f7e60] [cursor=pointer]:
+            - /url: /lifecycle
+          - link "감사 로그" [ref=f7e64] [cursor=pointer]:
+            - /url: /audit
+        - generic [ref=f7e68]:
+          - paragraph [ref=f7e69]: M365 앱
+          - link [ref=f7e70] [cursor=pointer]:
+            - /url: https://outlook.office.com/mail/
+          - link [ref=f7e78] [cursor=pointer]:
+            - /url: https://teams.microsoft.com/
+          - link [ref=f7e85] [cursor=pointer]:
+            - /url: https://www.office.com/launch/onedrive
+          - link [ref=f7e92] [cursor=pointer]:
+            - /url: https://planner.cloud.microsoft/
+      - generic [ref=f7e100]:
+        - paragraph [ref=f7e101]: 김 우성
+        - paragraph [ref=f7e102]: 개발 · 관리자
+        - button "로그아웃" [ref=f7e104]
+    - main [ref=f7e105]:
+      - generic [ref=f7e106]:
+        - generic [ref=f7e107]:
+          - generic [ref=f7e108]:
+            - heading "조직도" [level=1] [ref=f7e109]
+            - generic [ref=f7e110]: Entra ID 디렉터리
+          - searchbox "이름, 부서, 직무 검색" [ref=f7e115]
+        - generic [ref=f7e116]:
+          - generic [ref=f7e117]:
+            - generic [ref=f7e118]:
+              - text: 전체
+              - generic [ref=f7e119]: "12"
+            - generic [ref=f7e120]:
+              - link "개발 5" [ref=f7e121] [cursor=pointer]:
+                - /url: /org?dept=%EA%B0%9C%EB%B0%9C
+                - text: 개발
+                - generic [ref=f7e122]: "5"
+              - link "영업 3" [ref=f7e123] [cursor=pointer]:
+                - /url: /org?dept=%EC%98%81%EC%97%85
+                - text: 영업
+                - generic [ref=f7e124]: "3"
+              - link "인사 2" [ref=f7e125] [cursor=pointer]:
+                - /url: /org?dept=%EC%9D%B8%EC%82%AC
+                - text: 인사
+                - generic [ref=f7e126]: "2"
+              - link "재무 1" [ref=f7e127] [cursor=pointer]:
+                - /url: /org?dept=%EC%9E%AC%EB%AC%B4
+                - text: 재무
+                - generic [ref=f7e128]: "1"
+              - link "부서 미지정 1" [ref=f7e129] [cursor=pointer]:
+                - /url: /org?dept=%EB%B6%80%EC%84%9C+%EB%AF%B8%EC%A7%80%EC%A0%95
+                - text: 부서 미지정
+                - generic [ref=f7e130]: "1"
+            - paragraph [ref=f7e131]: 부서·직급·프로필은 Entra ID 디렉터리 기준 · 상태는 Teams 프레즌스
+          - generic [ref=f7e132]:
+            - generic [ref=f7e133]:
+              - heading "개발" [level=2] [ref=f7e134]
+              - generic [ref=f7e135]: 5명 · 팀장 서예린
+            - generic [ref=f7e136]:
+              - generic [ref=f7e137]:
+                - generic [ref=f7e138]: 김
+                - generic [ref=f7e141]:
+                  - paragraph [ref=f7e142]: 김민준
+                  - paragraph [ref=f7e143]: 선임
+                  - paragraph [ref=f7e144]: dev1@workhub0109.onmicrosoft.com
+                - generic [ref=f7e145]:
+                  - link "메일 보내기" [ref=f7e146] [cursor=pointer]:
+                    - /url: https://outlook.office.com/mail/deeplink/compose?to=dev1%40workhub0109.onmicrosoft.com
+                  - link "Teams 채팅" [ref=f7e150] [cursor=pointer]:
+                    - /url: https://teams.microsoft.com/l/chat/0/0?users=dev1%40workhub0109.onmicrosoft.com
+                  - link "회의 잡기" [ref=f7e153] [cursor=pointer]:
+                    - /url: https://outlook.office.com/calendar/action/compose?to=dev1%40workhub0109.onmicrosoft.com
+              - generic [ref=f7e157]:
+                - generic [ref=f7e158]: 서
+                - generic [ref=f7e161]:
+                  - paragraph [ref=f7e162]: 서예린
+                  - paragraph [ref=f7e163]: 매니저
+                  - paragraph [ref=f7e164]: dev4@workhub0109.onmicrosoft.com
+                - generic [ref=f7e165]:
+                  - link "메일 보내기" [ref=f7e166] [cursor=pointer]:
+                    - /url: https://outlook.office.com/mail/deeplink/compose?to=dev4%40workhub0109.onmicrosoft.com
+                  - link "Teams 채팅" [ref=f7e170] [cursor=pointer]:
+                    - /url: https://teams.microsoft.com/l/chat/0/0?users=dev4%40workhub0109.onmicrosoft.com
+                  - link "회의 잡기" [ref=f7e173] [cursor=pointer]:
+                    - /url: https://outlook.office.com/calendar/action/compose?to=dev4%40workhub0109.onmicrosoft.com
+              - generic [ref=f7e177]:
+                - generic [ref=f7e178]: 유
+                - generic [ref=f7e181]:
+                  - paragraph [ref=f7e182]: 유시우
+                  - paragraph [ref=f7e183]: 인턴
+                  - paragraph [ref=f7e184]: intern1@workhub0109.onmicrosoft.com
+                - generic [ref=f7e185]:
+                  - link "메일 보내기" [ref=f7e186] [cursor=pointer]:
+                    - /url: https://outlook.office.com/mail/deeplink/compose?to=intern1%40workhub0109.onmicrosoft.com
+                  - link "Teams 채팅" [ref=f7e190] [cursor=pointer]:
+                    - /url: https://teams.microsoft.com/l/chat/0/0?users=intern1%40workhub0109.onmicrosoft.com
+                  - link "회의 잡기" [ref=f7e193] [cursor=pointer]:
+                    - /url: https://outlook.office.com/calendar/action/compose?to=intern1%40workhub0109.onmicrosoft.com
+              - generic [ref=f7e197]:
+                - generic [ref=f7e198]: 윤
+                - generic [ref=f7e201]:
+                  - paragraph [ref=f7e202]: 윤지호
+                  - paragraph [ref=f7e203]: 사원
+                  - paragraph [ref=f7e204]: dev3@workhub0109.onmicrosoft.com
+                - generic [ref=f7e205]:
+                  - link "메일 보내기" [ref=f7e206] [cursor=pointer]:
+                    - /url: https://outlook.office.com/mail/deeplink/compose?to=dev3%40workhub0109.onmicrosoft.com
+                  - link "Teams 채팅" [ref=f7e210] [cursor=pointer]:
+                    - /url: https://teams.microsoft.com/l/chat/0/0?users=dev3%40workhub0109.onmicrosoft.com
+                  - link "회의 잡기" [ref=f7e213] [cursor=pointer]:
+                    - /url: https://outlook.office.com/calendar/action/compose?to=dev3%40workhub0109.onmicrosoft.com
+              - generic [ref=f7e217]:
+                - generic [ref=f7e218]: 최
+                - generic [ref=f7e221]:
+                  - paragraph [ref=f7e222]: 최수아
+                  - paragraph [ref=f7e223]: 사원
+                  - paragraph [ref=f7e224]: dev2@workhub0109.onmicrosoft.com
+                - generic [ref=f7e225]:
+                  - link "메일 보내기" [ref=f7e226] [cursor=pointer]:
+                    - /url: https://outlook.office.com/mail/deeplink/compose?to=dev2%40workhub0109.onmicrosoft.com
+                  - link "Teams 채팅" [ref=f7e230] [cursor=pointer]:
+                    - /url: https://teams.microsoft.com/l/chat/0/0?users=dev2%40workhub0109.onmicrosoft.com
+                  - link "회의 잡기" [ref=f7e233] [cursor=pointer]:
+                    - /url: https://outlook.office.com/calendar/action/compose?to=dev2%40workhub0109.onmicrosoft.com
+  - button "Open Next.js Dev Tools" [ref=f7e242] [cursor=pointer]

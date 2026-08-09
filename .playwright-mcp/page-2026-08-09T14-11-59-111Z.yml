@@ -1,0 +1,7 @@
+- generic [active] [ref=e1]:
+  - main [ref=e2]:
+    - generic [ref=e3]:
+      - heading "WorkHub365" [level=1] [ref=e4]
+      - paragraph [ref=e5]: M365 위에 얹히는 경량 그룹웨어. 조직의 Microsoft 365 계정으로 로그인하세요.
+      - button "Microsoft 계정으로 로그인" [ref=e7]
+  - button "Open Next.js Dev Tools" [ref=e18] [cursor=pointer]
