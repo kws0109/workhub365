@@ -101,3 +101,18 @@ export async function getSharedWithMe(token: string): Promise<DriveEntry[]> {
   );
   return page.value.map(toEntry);
 }
+
+/** 홈 최근 문서 위젯(B7) — /me/drive/recent에서 파일만 상위 limit건 */
+export async function getRecentFiles(
+  token: string,
+  limit = 3,
+): Promise<DriveEntry[]> {
+  const page = await delegatedGraphFetch<{ value: RawDriveItem[] }>(
+    token,
+    "/me/drive/recent?$top=10",
+  );
+  return page.value
+    .map(toEntry)
+    .filter((e) => !e.isFolder)
+    .slice(0, limit);
+}
