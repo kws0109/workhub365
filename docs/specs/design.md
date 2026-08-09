@@ -20,7 +20,11 @@
 | 관리 액션 | Graph 관리 호출 | client credentials(app-only), `.default` scope + admin consent | 앱 등록 #2 |
 
 - 역할(admin/manager/employee)은 DB `users.role`에 저장. 최초 로그인 시 employee로 생성, 승격은 admin이 수행(부트스트랩: `ADMIN_EMAILS` 환경변수에 나열된 계정은 **매 로그인마다** 평가해 admin으로 승격 — 최초 가입 시에만 적용하면 데드락)
+- `hr_admin`(인사 근태·휴가 정정 권한)은 role과 **직교한 boolean 컬럼**이며 roleEnum은 변경하지 않는다. 부여 경로는 `HR_EMAILS` 환경변수 부트스트랩 1개뿐 — ADMIN_EMAILS와 완전 대칭으로 **승격 전용**(강등 없음, 회수는 DB 직접 수정)이고 권한 관리 UI는 만들지 않는다. 시드 스크립트의 on-conflict SET 목록에는 넣지 않으므로 시드 재실행에도 수동 부여가 보존된다(SET에 넣으면 "시드가 권한을 덮어쓴다"는 사고 경로를 새로 만든다)
 - 세션 전략: JWT (DB 세션 불필요). jwt 콜백에서 매 요청 역할을 DB에서 갱신하며, **행이 삭제된 사용자는 토큰에서 신원을 제거해 fail-closed**
+- hr_admin 세션 전달은 **세 지점 모두**를 배선해야 한다: jwt 콜백의 사용자 행 존재 분기에서 `token.hrAdmin = row.hrAdmin`, 행 없음(삭제) 분기에서 `delete token.hrAdmin`, session 콜백은 반드시 `if (token.dbId)` 블록 **안**에서 `session.user.hrAdmin = token.hrAdmin === true`. 하나라도 빠지면 삭제된 사용자나 배포 직후의 기존 토큰에서 권한이 샌다. `=== true`가 undefined를 false로 강제해 fail-closed이며, 행 조회는 이미 존재하므로 DB 왕복은 늘지 않는다
+- 갱신 스로틀 정정: jwt 콜백의 stale 조건에 `profile?.oid` 검사가 있어 **재로그인 시에는 즉시 반영**된다. 60초(`ROLE_REFRESH_MS`) 지연은 이미 로그인된 세션에만 해당한다 — 역할·플래그 부여 후 재로그인이 확정 반영 수단이다
+- 권한 플래그 확산 기준: JWT는 암호화 쿠키이고 위임 액세스·리프레시 토큰이 이미 실려 있다. 직교 플래그가 **3개를 넘으면** `user_permissions` 테이블 + `assertCapability(cap)`로 승격한다 — 그때 호출부 시그니처만 갈아끼우면 되도록 권한 가드를 순수 함수 헬퍼로 격리해 둔다
 - 계정 식별은 불변 클레임 **oid(entraId)** 기준 — 이메일은 변경·재활용 가능하므로 매칭 키로 쓰지 않는다(nOAuth 방지). 토큰의 `tid`를 코드에서 재검증해 테넌트를 고정하고, `AUTH_MICROSOFT_ENTRA_ID_ISSUER` 미설정 시 로그인을 거부(fail-closed — provider의 /common 폴백 방어)
 
 ## Graph 권한 (앱 등록 #2, application)
@@ -32,9 +36,9 @@ User.ReadWrite.All, Organization.Read.All, Group.ReadWrite.All, Directory.Read.A
 - 드라이버는 `drizzle-orm/neon-serverless`(WebSocket Pool) — neon-http는 `db.transaction()`이 런타임에서 실패한다. 휴가 승인(차감 1회)·승인 게이트(실행+감사로그)의 원자성에 트랜잭션 필수
 - `attendance_records`는 `(user_id, date)` 유니크 — 하루 1행 불변식을 DB에서 강제
 
-- `users` — id, entraId(oid), email, name, department, role(admin/manager/employee), managerId, annualLeaveDays(부여 연차), createdAt
+- `users` — id, entraId(oid), email, name, department, role(admin/manager/employee), `hr_admin boolean not null default false`(인사 정정 권한 — role과 직교), managerId, annualLeaveDays(부여 연차), createdAt
 - `leave_requests` — id, userId, type(annual/half/sick), startDate, endDate, days(numeric), reason, status(pending/approved_1/approved/rejected/cancelled), approverId, rejectReason, createdAt, decidedAt
-- `attendance_records` — id, userId, date, checkInAt, checkOutAt, workedMinutes, note
+- `attendance_records` — id, userId, date, checkInAt, checkOutAt, workedMinutes, note(**HR 정정 사유 슬롯**으로 용도 확정 — 다른 쓰기 경로 없음. 향후 직원이 스스로 남기는 비고 기능이 생기면 정정 사유가 덮여 쓰이므로 그때 컬럼 분리가 필요하다)
 - `audit_logs` — id, actorId, actorType(user/assistant), action, targetType, targetId, detail(jsonb), success, createdAt
 - `approval_requests` — id, kind(assistant_action), payload(jsonb), status(pending/approved/rejected/executed/failed), requestedBy, decidedBy, createdAt, decidedAt — AI 승인 카드용
 - `sku_prices` — skuId, skuPartNumber, displayName, monthlyPriceKrw — 낭비 금액 환산 단가표
@@ -57,6 +61,14 @@ User.ReadWrite.All, Organization.Read.All, Group.ReadWrite.All, Directory.Read.A
 ### M3 휴가 / M4 근태
 - 핵심 로직 순수 함수화: `transitionLeave(request, action, actor)`, `aggregateWeeklyMinutes(records, weekStart)`, `detectOvertime(weeklyMinutes, limit)`
 - KST 주 경계(월요일 00:00 KST) 기준 집계 — UTC 저장, 집계 시 변환
+- HR 정정(R3.9·R4.4) 순수 함수: `isHrEditor`/`canEditRecordOf`(`src/lib/hr.ts`), `leaveBalanceWeight`/`leaveBalanceDelta`/`correctLeave`(`src/lib/leave.ts`), `kstToUtc`/`nextKstDate`/`validateAttendanceCorrection`/`MAX_SHIFT_MINUTES`(`src/lib/attendance.ts`)
+- 정정 서버 액션의 실행 순서를 고정한다: **트랜잭션 시작 → before 스냅샷 읽기 → 순수 함수 검증 → 스냅샷 전체 CAS UPDATE(0행이면 실패) → 잔액 델타(WHERE 안 가드) → `tx.insert(auditLogs)`**. before를 트랜잭션 밖에서 읽으면 동시 수정 시 "이전 값"이 거짓이 되고, 잔액 가드를 앱에서 비교하면 행 락이 없어 TOCTOU가 남는다. 락 순서는 `leave_requests → users` 고정(decideLeave와 동일 — 반대면 데드락)
+- 잔여 연차 재계산은 케이스 분기 없이 단일 불변식: `weight(req) = (status === "approved" && type !== "sick") ? days : 0`, `delta = weight(after) − weight(before)`. `deductionOf`(병가 0)와 팀 화면 집계 SQL(`status='approved' and type <> 'sick'`) 양쪽과 대칭이라 "총 연차 = 잔여 + 승인 사용분" 파생 등식이 보존된다. 잔여 직접 조정 UI는 만들지 않는다(`users.grantedAnnualLeaveDays` 신설이 선행 조건)
+- 경합 방어는 읽은 스냅샷 전체를 CAS WHERE에 건다(휴가: status·type·days·startDate·endDate / 근태: id·checkInAt + 열린 행이면 `isNull(checkOutAt)`). 기존 `decideLeave`의 가드에도 type·days를 추가한다 — **`days`는 numeric이라 드라이버가 문자열로 돌려주므로 변환 없이 그대로 비교해야 한다(`Number()`를 끼우면 타입 불일치로 항상 0행이 되어 모든 승인·반려가 실패한다)**
+- 오류 변환: `23P01` → "해당 기간과 겹치는 신청이 이미 있습니다", `23505` → "해당 날짜에 이미 근무 기록이 있습니다"
+- 승인 게이트 미경유: 근태·휴가 정정은 `approval_requests`를 거치지 않는다 — 아키텍처 규칙 3의 열거 대상이 아니고 규칙 4(감사 로그)가 적용 규칙이다. 통제는 사유 필수·전/후 스냅샷·셀프 정정 금지·상태 상향 금지 4종. 감사 액션은 `attendance.correct`/`attendance.create`/`attendance.delete`, `leave.correct`/`leave.force_cancel`이며 detail은 `{ targetUserId, targetUserName, reason, before, after, balanceDelta? }`. 소프트 삭제는 도입하지 않으므로 `attendance.delete`의 before 스냅샷이 물리 삭제의 유일한 복구 근거다
+- **검증 권위의 비대칭**: 휴가의 기간 겹침은 EXCLUDE 제약이 최종 권위(DB 레벨)지만, 근태의 역전·24시간 상한·미래 차단은 앱 레벨 순수 함수에만 있다. 기존 checkIn/checkOut이 만든 레거시 행이 CHECK 제약 추가 마이그레이션을 깨뜨릴 위험을 피한 선택이며, HR 경로 외의 새 쓰기 경로가 생기면 우회된다
+- **경고 — `leave/page.tsx`의 거부목록(denylist) 게이트**: 열람 범위를 `role === "employee" ? [본인+같은 부서] : []`로 판정하므로, roleEnum에 값을 늘리는 순간 컴파일을 통과한 채 전사 승인 휴가가 조용히 노출된다. HR 권한을 role이 아닌 직교 플래그로 뺀 이유 중 하나이며, 향후 허용목록(allowlist)으로 뒤집을 것
 
 ### M5 AI 어시스턴트
 - 루프: 사용자 메시지 → Claude API(tools) → tool_use → 서버에서 실행 → tool_result → … → 최종 응답
@@ -103,6 +115,7 @@ User.ReadWrite.All, Organization.Read.All, Group.ReadWrite.All, Directory.Read.A
 - 회의실: app-only `/places/microsoft.graph.room` 목록 + 위임 `getSchedule` 가용성 + 위임 이벤트 생성(회의실 attendee, `Calendars.ReadWrite`). 리소스 사서함 0개면 세팅 가이드 카드로 강등
 - **메신저 제외 근거**: Teams 채팅 본문 protected API(CLAUDE.md 알려진 제약). 자체 DB 채팅은 "M365 위에 얹는다" 정체성에 반해 만들지 않는다
 - M5 전직원 개방: MCP 도구에 `minRole`(employee|manager|admin) 부여, `/api/assistant`가 세션 역할로 도구 목록 필터 + `executeTool`에 역할 게이트 2중화. employee용 신규 조회 도구(내 연차·내 주간 근무·내 기안 현황)는 actor 컨텍스트(userId) 주입 — 타인 정보 조회 불가를 게이트 테스트에 추가
+- **HR 근태·휴가 정정은 어시스턴트 도구로 노출하지 않는다(웹 UI 전용)** — minRole 매트릭스 자체는 변경 없음. 근거: stdio 서버가 actor 없이 `executeTool`을 호출해 minRole 게이트가 건너뛰어지고, `ROLE_RANK` 선형 서열이 직교 플래그를 표현하지 못한다(Actor 타입에도 role만 있다). 노출하려면 `requiresApproval: true`가 강제되는데 이는 정정의 승인 게이트 미경유 결정과 모순되고, 전/후 확인과 사유 입력이 필요한 저빈도 액션이라 대화형 이득도 없다
 
 ## 오류 처리 원칙
 
@@ -113,5 +126,6 @@ User.ReadWrite.All, Organization.Read.All, Group.ReadWrite.All, Directory.Read.A
 ## 테스트 전략
 
 - 단위(Vitest): calcLicenseWaste, transitionLeave 상태머신, aggregateWeeklyMinutes(자정/주 경계), 승인 게이트(변경형 도구가 approval 없이 실행되지 않음)
+- HR 정정 재정산·경계: **잔여 연차 델타 전이 매트릭스**(승인/비승인 × 연차·반차/병가 × 일수 증감 × 취소 — 동일 스냅샷은 0), **KST 역변환 경계**(자정 넘김 퇴근, 전날 귀속 정정, 1440분 상한, 미래 시각 차단), **열린 기록 쌍 불변식**(생성 시 퇴근 필수, 닫힌 행 재개방 불가, 열린 행은 출근 시각 고정), **pending이 아닌 건의 일수 증가 단방향 금지**. 기존 `transitionLeave`·`attendance`·도구 minRole 매트릭스 테스트는 **무수정 통과**가 불변식 무손상의 증명이므로 수정하지 않는다
 - 시나리오: 오프보딩 파이프라인 mock Graph로 단계 실패→재시도
 - E2E는 수동(실제 테넌트) + 데모 영상으로 갈음, Playwright는 스트레치

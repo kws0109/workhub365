@@ -124,6 +124,8 @@ sequenceDiagram
 
 [docs/setup-guide.md](docs/setup-guide.md) — M365 테넌트 준비, Entra ID 앱 등록 2개, 환경변수 설정, 로컬 실행. Vercel 배포는 [docs/deploy.md](docs/deploy.md).
 
+부트스트랩 환경변수는 둘 다 쉼표 구분이며 **승격 전용**(회수는 DB 직접 수정)입니다 — `ADMIN_EMAILS`는 로그인 시 admin 역할을, `HR_EMAILS`는 인사 정정 권한(`hr_admin`)을 부여합니다. admin은 인사 정정 권한을 자동으로 겸임합니다.
+
 ```bash
 npm install
 npm run dev        # 개발 서버
