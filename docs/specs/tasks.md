@@ -73,19 +73,19 @@ Phase 단위로 브랜치 → PR. 완료 시 체크.
 
 인사팀 담당자(`hr_admin` 플래그 — role과 직교)가 타인의 근태·휴가 오기록을 직접 정정한다. 화면은 근태·휴가 세그먼트의 4번째 탭(`/attendance/manage`, B18). 본인 기록 정정은 admin 포함 전면 불허, 승인 게이트는 경유하지 않고 감사 로그로 통제한다(requirements R4.4·R3.9).
 
-- [ ] 스펙 선개정: requirements(역할 표 직교 플래그·R4.1 개정·R4.4·R3.9·수용 기준·N2) / design(인증 2층·users 컬럼·순수 함수와 액션 순서·minRole 무변경·검증 비대칭·denylist 경고·테스트 전략) / tasks / feature-map B18
-- [ ] 스키마·인증 배선: `users.hr_admin` 컬럼 + `HR_EMAILS` 부트스트랩(승격 전용) + jwt/session 콜백 3지점 배선(삭제 사용자 분기 `delete`, session은 `if (token.dbId)` 안에서 `=== true`) + next-auth 타입 확장
-- [ ] 권한 판정 순수 함수 `src/lib/hr.ts`(`isHrEditor`·`canEditRecordOf`) + 테스트 — admin 암묵 겸임, 본인 기록 전면 불허
-- [ ] 근태 순수 함수(`kstToUtc`·`nextKstDate`·`validateAttendanceCorrection`·`MAX_SHIFT_MINUTES`) + 테스트 — 자정 넘김·1440분 경계·미래 차단·열린 행 비대칭 규칙
-- [ ] 휴가 정정 순수 함수(`leaveBalanceWeight`·`leaveBalanceDelta`·`correctLeave`) + 테스트 — 델타 전이 매트릭스, 비-pending 일수 증가 금지, 활성→취소 단방향
-- [ ] 페이지·액션 가드(`assertHr`) — hr_admin 범위는 정정 화면과 그 서버 액션에 한정(admin 전용 화면은 열리지 않음)
-- [ ] `attendance/layout.tsx` 신설(h1+탭 셸을 leave/layout.tsx와 동형으로) + `attendance/page.tsx`에서 h1·탭 제거 + 탭 활성 판정 exact 매칭 전환(`aria-current` 이중 부착 해소)
-- [ ] `decideLeave` CAS 가드에 `type`·`days` 추가 + 0행 메시지를 "신청이 이미 처리되었거나 내용이 변경되었습니다"로 보정 → **승인·반려 회귀 확인**(`days`를 드라이버가 준 **문자열 그대로** 비교했는지 — `Number()`를 끼우면 타입 불일치로 항상 0행이 되어 모든 결재가 실패)
-- [ ] 인사 정정 서버 액션 5종(`attendance.correct`/`create`/`delete`, `leave.correct`/`force_cancel`) — 트랜잭션 내 before 스냅샷 → 순수 함수 검증 → 스냅샷 전체 CAS → 잔액 델타(WHERE 안 가드) → 감사 로그
-- [ ] 인사 정정 화면 `/attendance/manage` — 대상 선택에서 본인 제외, 정정 사유 필수, 열린 행은 출근 시각 입력 비활성
-- [ ] DB 반영 3단계: ① `npx drizzle-kit push --force`(TTY 없어 `--force` 필수) ② `node --env-file=.env.local scripts/apply-manual-migrations.mjs` **재실행**(push 다이어프가 EXCLUDE 제약을 표현하지 못해 드롭했을 수 있음) ③ `select conname from pg_constraint where conname = 'leave_requests_no_overlap'`로 잔존 확인 — 0행이면 기간 겹침 방어가 통째로 사라진 상태이므로 즉시 ②를 재실행
-- [ ] 게이트: `npm run lint` → `npm test` → `npm run build` 전부 통과 + 기존 `transitionLeave`·`attendance`·도구 minRole 매트릭스 테스트 **무수정** 통과 확인
-- [ ] 문서 마감: handoff 결정 기록 + tasks 체크 + 데모 대본(시드 재실행이 `annual_leave_days`를 리셋하므로 **시드 → 정정 시연** 순서 고정)
+- [x] 스펙 선개정: requirements(역할 표 직교 플래그·R4.1 개정·R4.4·R3.9·수용 기준·N2) / design(인증 2층·users 컬럼·순수 함수와 액션 순서·minRole 무변경·검증 비대칭·denylist 경고·테스트 전략) / tasks / feature-map B18
+- [x] 스키마·인증 배선: `users.hr_admin` 컬럼 + `HR_EMAILS` 부트스트랩(승격 전용) + jwt/session 콜백 3지점 배선(삭제 사용자 분기 `delete`, session은 `if (token.dbId)` 안에서 `=== true`) + next-auth 타입 확장
+- [x] 권한 판정 순수 함수 `src/lib/hr.ts`(`isHrEditor`·`canEditRecordOf`) + 테스트 — admin 암묵 겸임, 본인 기록 전면 불허
+- [x] 근태 순수 함수(`kstToUtc`·`nextKstDate`·`validateAttendanceCorrection`·`MAX_SHIFT_MINUTES`) + 테스트 — 자정 넘김·1440분 경계·미래 차단·열린 행 비대칭 규칙
+- [x] 휴가 정정 순수 함수(`leaveBalanceWeight`·`leaveBalanceDelta`·`correctLeave`) + 테스트 — 델타 전이 매트릭스, 비-pending 일수 증가 금지, 활성→취소 단방향
+- [x] 페이지·액션 가드(`assertHr`) — hr_admin 범위는 정정 화면과 그 서버 액션에 한정(admin 전용 화면은 열리지 않음)
+- [x] `attendance/layout.tsx` 신설(h1+탭 셸을 leave/layout.tsx와 동형으로) + `attendance/page.tsx`에서 h1·탭 제거 + 탭 활성 판정 exact 매칭 전환(`aria-current` 이중 부착 해소)
+- [x] `decideLeave` CAS 가드에 `type`·`days` 추가 + 0행 메시지를 "신청이 이미 처리되었거나 내용이 변경되었습니다"로 보정 → **승인·반려 회귀 확인**(`days`를 드라이버가 준 **문자열 그대로** 비교했는지 — `Number()`를 끼우면 타입 불일치로 항상 0행이 되어 모든 결재가 실패)
+- [x] 인사 정정 서버 액션 5종(`attendance.correct`/`create`/`delete`, `leave.correct`/`force_cancel`) — 트랜잭션 내 before 스냅샷 → 순수 함수 검증 → 스냅샷 전체 CAS → 잔액 델타(WHERE 안 가드) → 감사 로그
+- [x] 인사 정정 화면 `/attendance/manage` — 대상 선택에서 본인 제외, 정정 사유 필수, 열린 행은 출근 시각 입력 비활성
+- [x] DB 반영 3단계: ① `npx drizzle-kit push --force`(TTY 없어 `--force` 필수) ② `node --env-file=.env.local scripts/apply-manual-migrations.mjs` **재실행**(push 다이어프가 EXCLUDE 제약을 표현하지 못해 드롭했을 수 있음) ③ `select conname from pg_constraint where conname = 'leave_requests_no_overlap'`로 잔존 확인 — 0행이면 기간 겹침 방어가 통째로 사라진 상태이므로 즉시 ②를 재실행
+- [x] 게이트: `npm run lint` → `npm test` → `npm run build` 전부 통과 + 기존 `transitionLeave`·`attendance`·도구 minRole 매트릭스 테스트 **무수정** 통과 확인
+- [x] 문서 마감: handoff 결정 기록 + tasks 체크 + 데모 대본(시드 재실행이 `annual_leave_days`를 리셋하므로 **시드 → 정정 시연** 순서 고정)
 
 후속 과제 (별도 스펙)
 
