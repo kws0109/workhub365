@@ -1,0 +1,33 @@
+# CI: lint + 단위 테스트 + 프로덕션 빌드 (Phase 6)
+# 시크릿 불필요 — DB 클라이언트는 지연 초기화 Proxy, env 접근은 전부 런타임이라
+# .env 없이도 빌드가 통과한다 (로컬에서 .env.local 제거 빌드로 검증됨)
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: 의존성 설치
+        run: npm ci
+
+      - name: ESLint
+        run: npm run lint
+
+      - name: 단위 테스트 (Vitest)
+        run: npm test
+
+      - name: 프로덕션 빌드
+        run: npm run build
