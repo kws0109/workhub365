@@ -2,6 +2,7 @@ import Link from "next/link";
 import { requireSession } from "@/lib/auth-helpers";
 import { kstDateOf } from "@/lib/attendance";
 import { addDaysIso } from "@/lib/calendar-week";
+import { isCalendarDate } from "@/lib/date-param";
 import { GraphError } from "@/lib/graph/client";
 import { getDelegatedGraphToken } from "@/lib/graph/delegated";
 import {
@@ -34,7 +35,6 @@ export const metadata = { title: "회의실 예약" };
 // 어느 경우에도 페이지는 죽지 않는다.
 
 const HOURS = Array.from({ length: ROOM_SLOT_COUNT }, (_, i) => ROOM_START_HOUR + i);
-const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 
 export default async function RoomsPage({
   searchParams,
@@ -44,7 +44,10 @@ export default async function RoomsPage({
   await requireSession();
   const sp = await searchParams;
   const today = kstDateOf(new Date());
-  const date = DATE_RE.test(sp.date ?? "") ? sp.date! : today;
+  // 형식만 맞고 달력에 없는 date(2026-13-45)는 조용히 오늘로 폴백 —
+  // 아래 addDaysIso는 헤더 JSX 조립 시점에 즉시 평가되므로 여기서 막지 않으면
+  // 위 강등 설계("어느 경우에도 페이지는 죽지 않는다")가 그대로 무너진다
+  const date = isCalendarDate(sp.date) ? sp.date : today;
 
   // 1) 회의실 목록 (app-only) — 실패(오류 카드)와 빈 배열(세팅 안내)을 구분한다
   let rooms: RoomInfo[] | null = null;

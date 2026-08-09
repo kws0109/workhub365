@@ -11,6 +11,7 @@ import {
   weekdaysOf,
   weekRangeLabel,
 } from "@/lib/calendar-week";
+import { isCalendarDate } from "@/lib/date-param";
 import { GraphError } from "@/lib/graph/client";
 import { getDelegatedGraphToken } from "@/lib/graph/delegated";
 import { getWeekEvents, type TodayEvent } from "@/lib/graph/me";
@@ -37,9 +38,9 @@ export default async function CalendarPage({
   await requireSession();
   const { week } = await searchParams;
   const today = kstDateOf(new Date());
-  const monday = mondayOf(
-    /^\d{4}-\d{2}-\d{2}$/.test(week ?? "") ? week! : today,
-  );
+  // 형식만 맞고 달력에 없는 week(2026-13-45)은 조용히 이번 주로 폴백한다 —
+  // 사용자는 기본 기간이 뜬 것으로 잘못된 값을 알 수 있고, 페이지는 죽지 않는다
+  const monday = mondayOf(isCalendarDate(week) ? week : today);
   const days = weekdaysOf(monday);
 
   const token = await getDelegatedGraphToken();

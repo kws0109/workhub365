@@ -97,8 +97,10 @@ const WEEKDAY_KO = ["일", "월", "화", "수", "목", "금", "토"] as const;
 
 /** "2026-08-13" → "2026-08-13 (목)" */
 export function roomDayLabel(dateKst: string): string {
+  // 달력에 없는 날짜가 흘러오면 getUTCDay()가 NaN이라 인덱싱이 undefined다 —
+  // "(undefined)"가 화면에 찍히는 대신 "(?)"로 떨어뜨린다
   const dow = new Date(`${dateKst}T00:00:00Z`).getUTCDay();
-  return `${dateKst} (${WEEKDAY_KO[dow]})`;
+  return `${dateKst} (${WEEKDAY_KO[dow] ?? "?"})`;
 }
 
 /** 내 예약 행의 시간 라벨 — "8/13 14:00–15:30" */

@@ -7,7 +7,12 @@ export const GRID_END_HOUR = 19;
 export const PX_PER_HOUR = 48;
 
 export function addDaysIso(iso: string, n: number): string {
-  const d = new Date(`${iso}T00:00:00Z`);
+  // 2026-13-45처럼 형식만 맞는 값은 Invalid Date다 — 조용한 롤오버나
+  // 호출부에서 터지는 toISOString RangeError 대신 여기서 명시적으로 실패한다.
+  // 진입부에서 isCalendarDate(src/lib/date-param.ts)로 거르는 것이 정상 경로다.
+  const t = Date.parse(`${iso}T00:00:00Z`);
+  if (!Number.isFinite(t)) throw new Error(`invalid iso date: ${iso}`);
+  const d = new Date(t);
   d.setUTCDate(d.getUTCDate() + n);
   return d.toISOString().slice(0, 10);
 }

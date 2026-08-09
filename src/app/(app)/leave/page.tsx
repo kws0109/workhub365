@@ -3,6 +3,7 @@ import { db } from "@/db";
 import { leaveRequests, users } from "@/db/schema";
 import { requireSession } from "@/lib/auth-helpers";
 import { kstDateOf } from "@/lib/attendance";
+import { isCalendarMonth } from "@/lib/date-param";
 import { ensurePublicHolidays, getHolidaysBetween } from "@/lib/holidays";
 import { ActionForm } from "@/components/action-form";
 import { LeaveCalendar } from "@/components/leave/leave-calendar";
@@ -37,7 +38,10 @@ export default async function LeavePage({
   const { month } = await searchParams;
   const todayKst = kstDateOf(new Date());
   const thisMonth = todayKst.slice(0, 7);
-  const ym = /^\d{4}-\d{2}$/.test(month ?? "") ? month! : thisMonth;
+  // 월(01~12)·연도(2000~2100)까지 실재성을 확인하고 아니면 이번 달로 폴백한다.
+  // 이 한 줄이 monthStart/monthEnd의 date 캐스팅 오류(2026-13-01), prevYm/nextYm 계산,
+  // ensurePublicHolidays(y)의 연도 범위를 동시에 지킨다
+  const ym = isCalendarMonth(month) ? month : thisMonth;
   const [y, m] = ym.split("-").map(Number);
   const thisYear = Number(todayKst.slice(0, 4));
   const monthStart = `${ym}-01`;

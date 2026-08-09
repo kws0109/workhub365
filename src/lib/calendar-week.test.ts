@@ -15,6 +15,19 @@ describe("addDaysIso", () => {
   it("연 경계를 넘는다", () => {
     expect(addDaysIso("2026-12-31", 1)).toBe("2027-01-01");
   });
+  it("달력에 없는 날짜는 조용히 롤오버하지 않고 throw", () => {
+    expect(() => addDaysIso("2026-13-45", 1)).toThrow(/invalid iso date/);
+    expect(() => addDaysIso("2026-00-10", 1)).toThrow(/invalid iso date/);
+    expect(() => addDaysIso("0000-00-00", 1)).toThrow(/invalid iso date/);
+    expect(() => addDaysIso("", 1)).toThrow(/invalid iso date/);
+    expect(() => addDaysIso("오늘", 1)).toThrow(/invalid iso date/);
+  });
+});
+
+describe("mondayOf 가드", () => {
+  it("달력에 없는 날짜는 addDaysIso 가드로 throw", () => {
+    expect(() => mondayOf("2026-13-45")).toThrow(/invalid iso date/);
+  });
 });
 
 describe("mondayOf", () => {
