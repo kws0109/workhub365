@@ -25,7 +25,8 @@
 | `DATABASE_URL` | Neon 연결 문자열(`-pooler` 호스트) | 로컬과 같은 DB를 써도 됨(데모 목적) |
 | `ANTHROPIC_API_KEY` | Claude API 키 | AI 어시스턴트 |
 | `ASSISTANT_MODEL` | `claude-sonnet-5` | |
-| `ADMIN_EMAILS` | admin 부트스트랩 이메일(쉼표 구분) | |
+| `ADMIN_EMAILS` | admin 부트스트랩 이메일(쉼표 구분) | 매 로그인마다 평가해 승격 |
+| `HR_EMAILS` | 인사 정정 권한(`hr_admin`) 부트스트랩 이메일(쉼표 구분) | 선택. **승격 전용** — 목록에서 빼도 회수되지 않는다(회수는 DB 직접 수정). admin은 자동 겸임 |
 
 ## 3. Entra 앱 등록에 프로덕션 리디렉션 URI 추가
 

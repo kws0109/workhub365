@@ -7,7 +7,7 @@ M365 위에 얹히는 경량 그룹웨어 + 관리 자동화. Next.js App Router
 - `npm run dev` — 개발 서버 (Turbopack)
 - `npm run build` — 프로덕션 빌드
 - `npm run lint` — ESLint
-- `npm test` — Vitest 단위 테스트 (Phase 6에서 추가)
+- `npm test` — Vitest 단위 테스트 (Phase 2에서 도입 — 낭비 계산 순수 함수와 함께 들어왔다)
 
 ## 아키텍처 규칙 (위반 금지)
 
@@ -30,7 +30,8 @@ M365 위에 얹히는 경량 그룹웨어 + 관리 자동화. Next.js App Router
 
 - 스펙이 진실의 원천: [docs/specs/requirements.md](docs/specs/requirements.md), [docs/specs/design.md](docs/specs/design.md), [docs/specs/tasks.md](docs/specs/tasks.md)
 - 기능 작업 전 해당 스펙 섹션을 읽고, 스펙과 다르게 구현해야 한다면 스펙을 먼저 수정한다
-- 모듈 단위 브랜치 → PR. 커밋은 의미 있는 단위로 쪼갠다
+- **브랜치 전략: trunk-based — main 직커밋.** 1인 리포라 브랜치·PR을 만들지 않는다(리뷰어 대기 시간만 늘고 얻는 게 없다). 커밋은 의미 있는 논리 단위로 쪼갠다
+- **리뷰는 PR이 아니라 커밋 직전의 다렌즈 병렬 에이전트 리뷰로 대체한다** — 렌즈(정확성·컨벤션·동시성·권한 등)를 나눠 서브에이전트를 동시에 돌리고, 지적은 반박 검증을 거쳐 고유 결함만 채택한다. **채택 결과(지적 건수 / 반영 건수 / 주요 결함)는 커밋 본문에 남긴다** — 이게 이 리포에서 PR 리뷰 스레드를 대신하는 기록이다
 
 ## 컨텍스트 제어
 
@@ -44,4 +45,4 @@ M365 위에 얹히는 경량 그룹웨어 + 관리 자동화. Next.js App Router
 
 - 공유 메일박스 전환은 Graph API 미지원(Exchange Online PowerShell 영역) — 오프보딩에서 제외
 - Teams 채팅 메시지 본문 읽기는 protected API(Microsoft 승인 필요) — 사용하지 않는다
-- E5 평가판 테넌트는 30일 만료 — 데모 영상/스크린샷을 미리 확보한다
+- E3/E5 평가판 테넌트는 30일 만료 — 데모 영상/스크린샷을 미리 확보한다 (이 프로젝트의 실테넌트는 Microsoft 365 **E3** 25석 평가판)

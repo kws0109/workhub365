@@ -16,7 +16,7 @@
 
 | 층 | 용도 | 방식 | 자격 증명 |
 |---|---|---|---|
-| 사용자 SSO | 직원 로그인, 역할 판별, 본인 메일·일정 위젯(M7) | Auth.js(NextAuth) + Microsoft Entra ID provider (delegated, openid/profile/email/User.Read/Mail.Read/Calendars.Read/offline_access) | 앱 등록 #1 |
+| 사용자 SSO | 직원 로그인, 역할 판별, 본인 메일·일정 위젯(M7), M8 협업 화면 | Auth.js(NextAuth) + Microsoft Entra ID provider (delegated) — 실제 요청 스코프는 `src/auth.ts`가 단일 소스: `openid profile email User.Read Mail.Read Calendars.ReadWrite Files.Read Presence.Read.All offline_access` | 앱 등록 #1 |
 | 관리 액션 | Graph 관리 호출 | client credentials(app-only), `.default` scope + admin consent | 앱 등록 #2 |
 
 - 역할(admin/manager/employee)은 DB `users.role`에 저장. 최초 로그인 시 employee로 생성, 승격은 admin이 수행(부트스트랩: `ADMIN_EMAILS` 환경변수에 나열된 계정은 **매 로그인마다** 평가해 admin으로 승격 — 최초 가입 시에만 적용하면 데드락)
@@ -29,7 +29,10 @@
 
 ## Graph 권한 (앱 등록 #2, application)
 
-User.ReadWrite.All, Organization.Read.All, Group.ReadWrite.All, Directory.Read.All, AuditLog.Read.All, Reports.Read.All (+ 스트레치: Calendars.ReadWrite)
+User.ReadWrite.All, Organization.Read.All, Group.ReadWrite.All, Directory.Read.All, AuditLog.Read.All, Reports.Read.All, Place.Read.All
+
+- `Place.Read.All`은 회의실 목록(`/places/microsoft.graph.room`, B6) 전용이다. **미부여는 설계된 강등 경로** — `/rooms`가 권한 안내 카드로 내려앉고 나머지 기능은 영향받지 않는다. 실측상 미부여 시 403이 아니라 **메시지 없는 401**이 오므로 `lib/graph/rooms.ts`가 이를 권한 안내 오류로 변환한다
+- 캘린더 **쓰기는 app-only가 아니라 위임**(`Calendars.ReadWrite`)으로 한다 — 회의실 예약은 로그인 사용자 본인 명의 이벤트여야 하고, app-only에 캘린더 권한을 주면 테넌트 전체 캘린더 쓰기 권한이 생겨 최소 권한 원칙에 어긋난다
 
 ## DB 스키마 (Drizzle, 초안)
 

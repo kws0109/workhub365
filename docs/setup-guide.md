@@ -25,7 +25,23 @@ WorkHub365를 실제 M365 테넌트에 연결해 실행하기까지의 전체 �
    (배포 후 `https://<도메인>/api/auth/callback/microsoft-entra-id` 추가)
 3. 등록 후: 개요에서 **애플리케이션(클라이언트) ID**, **디렉터리(테넌트) ID** 복사
 4. 인증서 및 암호 → 새 클라이언트 암호 → **값** 즉시 복사 (다시 볼 수 없음)
-5. API 권한은 기본 `User.Read`(delegated)면 충분
+5. API 권한 → Microsoft Graph → **위임된 권한**에 아래를 추가 (앱이 실제로 요청하는 스코프는 `src/auth.ts:46-47`에 하드코딩돼 있다):
+
+   | 스코프 | 용도 |
+   |---|---|
+   | `User.Read` | 로그인 프로필 |
+   | `Mail.Read` | 홈 안읽은 메일 위젯, 메일 화면(B1) |
+   | `Calendars.ReadWrite` | 일정 화면(B2) + **회의실 예약(B6) — 유일한 쓰기 위임** |
+   | `Files.Read` | 문서함·최근 문서(B5·B7) |
+   | `Presence.Read.All` | 조직도 프레즌스(B3) — **관리자 동의 필요** |
+   | `offline_access` | 리프레시 토큰(액세스 토큰 ~1시간 만료 후 위젯 유지) |
+
+   (`openid profile email`은 Auth.js가 기본으로 붙인다)
+
+   - 나머지 M365 쓰기(메일 작성·파일 편집)는 전부 Outlook/OneDrive **딥링크로 위임**한다 — 그래서 쓰기 위임 스코프가 `Calendars.ReadWrite` 하나뿐이다
+   - `Presence.Read.All`은 사용자 개인 동의로 끝나지 않으므로, 이 화면에서 **"관리자 동의 허용"까지 눌러 둘 것**. 동의가 없으면 조직도 프레즌스만 회색으로 강등된다
+   - **주의 — 스코프를 바꾸면 반드시 두 곳을 같이 고친다**: `src/auth.ts:46`(로그인 시 요청)과 `src/lib/graph/delegated.ts:96`(리프레시 시 요청). 한쪽만 고치면 리프레시가 미동의 스코프를 요구해 실패하고, 위임 위젯이 조용히 "재로그인 안내"로 강등된다 (두 파일의 주석에도 서로를 가리키는 경고가 달려 있다)
+   - 스코프를 확장하면 **기존 세션은 재로그인 동의 전까지 위젯이 강등된 상태**로 남는다 — 정상 경로다
 
 → `.env.local`의 `AUTH_MICROSOFT_ENTRA_ID_ID` / `AUTH_MICROSOFT_ENTRA_ID_SECRET`,
 `AUTH_MICROSOFT_ENTRA_ID_ISSUER=https://login.microsoftonline.com/<테넌트ID>/v2.0`
@@ -40,6 +56,9 @@ WorkHub365를 실제 M365 테넌트에 연결해 실행하기까지의 전체 �
    - `Directory.Read.All` — 디렉터리 조회
    - `AuditLog.Read.All` — signInActivity(마지막 로그인)
    - `Reports.Read.All` — 사용량 리포트
+   - `Place.Read.All` — 회의실(리소스 사서함) 목록 `/places/microsoft.graph.room`
+     - 미부여 시 `/rooms` 화면이 **권한 안내 카드로 강등된다 — 오류가 아니라 설계된 강등 경로다.** 회의실 데모를 하지 않는다면 건너뛰어도 나머지 기능은 전부 동작한다
+     - 실측 주의: `/places`는 미부여 시 403이 아니라 **메시지 없는 401**을 준다(`src/lib/graph/rooms.ts:29`) — 앱이 이를 권한 안내로 변환한다
 3. **"<테넌트>에 대한 관리자 동의 허용"** 버튼 클릭 (전역 관리자 필요)
 4. 클라이언트 암호 생성 → 값 복사
 
@@ -52,7 +71,8 @@ WorkHub365를 실제 M365 테넌트에 연결해 실행하기까지의 전체 �
   - 스키마 반영: `npm run db:push` + 수동 마이그레이션 `node --env-file=.env.local scripts/apply-manual-migrations.mjs` (EXCLUDE 제약 등 drizzle-kit이 표현 못 하는 DDL)
 - **Anthropic API 키**: [console.anthropic.com](https://console.anthropic.com) → API Keys → `ANTHROPIC_API_KEY`
 - **AUTH_SECRET**: `npx auth secret` 실행으로 생성
-- **ADMIN_EMAILS**: 본인 관리자 계정 이메일 (쉼표 구분)
+- **ADMIN_EMAILS**: 본인 관리자 계정 이메일 (쉼표 구분) — 매 로그인마다 평가해 admin으로 승격
+- **HR_EMAILS**: 인사 정정 권한(`hr_admin`)을 줄 이메일 (쉼표 구분, 선택). ADMIN_EMAILS와 대칭으로 **승격 전용** — 목록에서 빼도 자동 회수되지 않는다(회수는 DB `users.hr_admin` 직접 수정). `admin`은 이 목록에 없어도 자동 겸임한다(`src/lib/hr.ts:11`)
 
 ## 4. 로컬 실행
 

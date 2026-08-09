@@ -47,8 +47,8 @@
 ## 환경·운영 정보
 
 - **개발 서버**: `.claude/launch.json`의 `dev` (preview로 실행, Bash 금지)
-- **로그인**: admin(김 우성)은 확장 스코프 동의 완료. 다른 데모 계정은 첫 로그인 시 동의 화면. 브라우저에 MS 세션이 살아있으면 로그인 버튼만으로 자동 SSO
-- **테넌트**: workhub0109.onmicrosoft.com, E3 25석 평가판(8월 말 만료 추정), admin 김 우성(부서 개발 — 단 Graph 프로필에는 부서 없음 → 조직도에서 '부서 미지정')
+- **로그인**: admin 계정은 확장 스코프 동의 완료. 다른 데모 계정은 첫 로그인 시 동의 화면. 브라우저에 MS 세션이 살아있으면 로그인 버튼만으로 자동 SSO
+- **테넌트**: workhub0109.onmicrosoft.com, E3 25석 평가판(8월 말 만료 추정). admin 계정은 Graph 프로필에 부서가 비어 있어 조직도에서 '부서 미지정'으로 묶인다
 - **DB**: Neon(us-east-2, -pooler) — `npx drizzle-kit push --force`(TTY 없음) + `node --env-file=.env.local scripts/apply-manual-migrations.mjs`. 게시판 시드: `node --env-file=.env.local scripts/seed-board-demo.mjs`(재실행 시 리셋)
 - **데모 데이터**: scripts/seed-demo-users.mjs, seed-leave-demo.mjs, seed-board-demo.mjs. 비밀번호는 demo-users.local.json(gitignore)
 - **Wiki**: https://github.com/kws0109/workhub365.wiki.git 새로 clone해 Development-Log.md 추가 후 push
