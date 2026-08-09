@@ -139,3 +139,102 @@ export function countLeaveDays(
 }
 
 export { dayOfWeekKst };
+
+// ─────────────────────────────────────────────────────────────
+// HR 기록 정정 (R5.x) — 결재 흐름이 아니라 '기록 정정' 경로
+// ─────────────────────────────────────────────────────────────
+
+/** 신청 1건이 잔여 연차에서 차지하는 무게. approved & 비병가일 때만 days만큼.
+ *  team/page.tsx의 `sum(days) filter (status='approved' and type <> 'sick')`와 대칭 */
+export function leaveBalanceWeight(
+  req: Pick<LeaveRequestLike, "status" | "type" | "days">,
+): number {
+  return req.status === "approved" && req.type !== "sick" ? req.days : 0;
+}
+
+/** 정정 전후의 잔여 연차 델타. 양수 = 추가 차감, 음수 = 복원 */
+export function leaveBalanceDelta(
+  before: Pick<LeaveRequestLike, "status" | "type" | "days">,
+  after: Pick<LeaveRequestLike, "status" | "type" | "days">,
+): number {
+  return leaveBalanceWeight(after) - leaveBalanceWeight(before);
+}
+
+export type LeaveSnapshot = {
+  userId: string;
+  type: LeaveType;
+  status: LeaveStatus;
+  startDate: string; // YYYY-MM-DD
+  endDate: string;
+  days: number;
+  approverId?: string | null;
+};
+
+export type LeaveCorrectionInput = {
+  type: LeaveType;
+  startDate: string;
+  endDate: string; // half면 startDate와 같아야 한다 (호출부가 정규화)
+  /** 서버가 getHolidaySet + countLeaveDays로 재계산한 값 — 클라이언트 입력 아님 */
+  days: number;
+  /** true면 내용은 그대로 두고 상태만 cancelled로 (활성→취소 단방향) */
+  cancel: boolean;
+};
+
+export type LeaveCorrectionResult =
+  | { ok: true; after: LeaveSnapshot; balanceDelta: number }
+  | { ok: false; reason: string };
+
+/**
+ * HR 기록 정정 — 결재 흐름이 아니라 '기록 정정' 경로.
+ * transitionLeave의 불변식(재결재 불가·본인 pending만 취소·2단계 이중 통제)을
+ * 건드리지 않기 위해 상태머신 '안'이 아니라 '옆'에 둔다. approverId는 절대 바꾸지 않는다.
+ */
+export function correctLeave(
+  before: LeaveSnapshot,
+  input: LeaveCorrectionInput,
+  actor: { id: string; hrEditor: boolean },
+): LeaveCorrectionResult {
+  if (!actor.hrEditor)
+    return { ok: false, reason: "인사 정정 권한이 없습니다" };
+  // 셀프 정정 전면 금지 — transitionLeave의 '본인 신청 결재 불가'와 같은 이중 통제 원칙
+  if (actor.id === before.userId)
+    return { ok: false, reason: "본인 기록은 정정할 수 없습니다" };
+  if (before.status === "rejected" || before.status === "cancelled")
+    return { ok: false, reason: "종결된 신청은 정정할 수 없습니다" };
+
+  let after: LeaveSnapshot;
+  if (input.cancel) {
+    // 활성 → 취소 단방향. 내용 필드는 무시한다 — 취소는 상태만 바꾼다
+    after = { ...before, status: "cancelled" };
+  } else {
+    if (input.days <= 0)
+      return {
+        ok: false,
+        reason: "기간에 근무일이 없거나 순서가 잘못되었습니다",
+      };
+    if (input.startDate > input.endDate)
+      return { ok: false, reason: "기간 순서가 잘못되었습니다" };
+    if (input.type === "half" && input.startDate !== input.endDate)
+      return { ok: false, reason: "반차는 하루만 지정할 수 있습니다" };
+    // 상태는 절대 상향하지 않는다. approverId·userId도 그대로 승계된다
+    after = {
+      ...before,
+      type: input.type,
+      startDate: input.startDate,
+      endDate: input.endDate,
+      days: input.days,
+      status: before.status,
+    };
+  }
+
+  // 일수 증가 단방향 금지 — 임계(needsSecondApproval) 통과 여부가 아니라 증가 자체를 막는다.
+  // 임계 비교로는 이미 4일인 승인 건을 40일로 늘리는 경로가 열린 채 남는다
+  if (before.status !== "pending" && after.days > before.days)
+    return {
+      ok: false,
+      reason:
+        "결재된 신청의 일수는 늘릴 수 없습니다. 정정 취소 후 재신청하세요",
+    };
+
+  return { ok: true, after, balanceDelta: leaveBalanceDelta(before, after) };
+}
