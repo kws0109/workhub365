@@ -22,9 +22,9 @@ export default async function LoginPage({
 
   return (
     <main className="flex flex-1 items-center justify-center p-6">
-      <div className="w-full max-w-sm rounded-2xl border border-zinc-200 bg-white p-8 shadow-sm">
+      <div className="w-full max-w-sm rounded-2xl border border-line bg-white p-8 shadow-sm">
         <h1 className="text-2xl font-bold tracking-tight">WorkHub365</h1>
-        <p className="mt-2 text-sm text-zinc-500">
+        <p className="mt-2 text-sm text-ink-secondary">
           M365 위에 얹히는 경량 그룹웨어. 조직의 Microsoft 365 계정으로
           로그인하세요.
         </p>
@@ -43,7 +43,7 @@ export default async function LoginPage({
         >
           <button
             type="submit"
-            className="flex w-full items-center justify-center gap-3 rounded-lg bg-zinc-900 px-4 py-3 text-sm font-medium text-white transition hover:bg-zinc-700"
+            className="flex w-full items-center justify-center gap-3 rounded-lg bg-ink px-4 py-3 text-sm font-medium text-white transition hover:bg-ink-body"
           >
             <MicrosoftLogo />
             Microsoft 계정으로 로그인

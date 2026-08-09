@@ -87,11 +87,11 @@ export default async function AttendancePage() {
   // h1·탭 바는 attendance/layout.tsx가 렌더한다 (첫 섹션 상단 여백도 layout의 mt-6이 담당)
   return (
     <>
-      <section className="rounded-xl border border-zinc-200 bg-white p-5">
+      <section className="rounded-xl border border-line bg-white p-5">
         <div className="flex items-center justify-between">
           <div>
             <h2 className="font-semibold">오늘 ({today})</h2>
-            <p className="mt-1 text-sm text-zinc-500">
+            <p className="mt-1 text-sm text-ink-secondary">
               출근 {formatTimeKst(myToday?.checkInAt ?? null)} · 퇴근{" "}
               {formatTimeKst(myToday?.checkOutAt ?? null)}
               {myToday?.workedMinutes != null &&
@@ -102,7 +102,7 @@ export default async function AttendancePage() {
             <ActionForm action={checkIn}>
               <button
                 disabled={!!myToday}
-                className="rounded-lg bg-zinc-900 px-4 py-2 text-sm font-medium text-white hover:bg-zinc-700 disabled:opacity-40"
+                className="rounded-lg bg-ink px-4 py-2 text-sm font-medium text-white hover:bg-ink-body disabled:opacity-40"
               >
                 출근
               </button>
@@ -110,7 +110,7 @@ export default async function AttendancePage() {
             <ActionForm action={checkOut}>
               <button
                 disabled={!!myToday?.checkOutAt}
-                className="rounded-lg border border-zinc-300 px-4 py-2 text-sm font-medium hover:bg-zinc-50 disabled:opacity-40"
+                className="rounded-lg border border-line-strong px-4 py-2 text-sm font-medium hover:bg-canvas disabled:opacity-40"
               >
                 퇴근
               </button>
@@ -119,7 +119,7 @@ export default async function AttendancePage() {
         </div>
       </section>
 
-      <section className="mt-6 rounded-xl border border-zinc-200 bg-white p-5">
+      <section className="mt-6 rounded-xl border border-line bg-white p-5">
         <div className="flex items-center justify-between">
           <h2 className="font-semibold">이번 주 ({weekStart} 시작)</h2>
           <div className="flex items-center gap-2">
@@ -128,7 +128,7 @@ export default async function AttendancePage() {
           </div>
         </div>
         {/* 52시간 게이지 */}
-        <div className="mt-3 h-2 overflow-hidden rounded-full bg-zinc-100">
+        <div className="mt-3 h-2 overflow-hidden rounded-full bg-fill">
           <div
             className={`h-full ${
               level === "over"
@@ -144,7 +144,7 @@ export default async function AttendancePage() {
         </div>
         <table className="mt-4 w-full text-sm">
           <thead>
-            <tr className="border-b border-zinc-200 text-left text-xs text-zinc-500">
+            <tr className="border-b border-line text-left text-xs text-ink-secondary">
               <th className="py-1.5 font-medium">날짜</th>
               <th className="py-1.5 font-medium">출근</th>
               <th className="py-1.5 font-medium">퇴근</th>
@@ -154,13 +154,13 @@ export default async function AttendancePage() {
           <tbody>
             {myWeek.length === 0 && (
               <tr>
-                <td colSpan={4} className="py-4 text-center text-zinc-400">
+                <td colSpan={4} className="py-4 text-center text-ink-muted">
                   이번 주 기록이 없습니다
                 </td>
               </tr>
             )}
             {myWeek.map((r) => (
-              <tr key={r.id} className="border-b border-zinc-100 last:border-0">
+              <tr key={r.id} className="border-b border-fill last:border-0">
                 <td className="py-1.5">{r.date}</td>
                 <td className="py-1.5">{formatTimeKst(r.checkInAt)}</td>
                 <td className="py-1.5">{formatTimeKst(r.checkOutAt)}</td>
@@ -174,11 +174,11 @@ export default async function AttendancePage() {
       </section>
 
       {isApprover && (
-        <section className="mt-6 rounded-xl border border-zinc-200 bg-white p-5">
+        <section className="mt-6 rounded-xl border border-line bg-white p-5">
           <h2 className="font-semibold">팀 주간 현황</h2>
           <table className="mt-3 w-full text-sm">
             <thead>
-              <tr className="border-b border-zinc-200 text-left text-xs text-zinc-500">
+              <tr className="border-b border-line text-left text-xs text-ink-secondary">
                 <th className="py-1.5 font-medium">이름</th>
                 <th className="py-1.5 font-medium">부서</th>
                 <th className="py-1.5 text-right font-medium">주간 근무</th>
@@ -188,7 +188,7 @@ export default async function AttendancePage() {
             <tbody>
               {teamTotals.size === 0 && (
                 <tr>
-                  <td colSpan={4} className="py-4 text-center text-zinc-400">
+                  <td colSpan={4} className="py-4 text-center text-ink-muted">
                     이번 주 기록이 없습니다
                   </td>
                 </tr>
@@ -196,9 +196,9 @@ export default async function AttendancePage() {
               {[...teamTotals.values()]
                 .sort((a, b) => b.minutes - a.minutes)
                 .map((t, i) => (
-                  <tr key={i} className="border-b border-zinc-100 last:border-0">
+                  <tr key={i} className="border-b border-fill last:border-0">
                     <td className="py-1.5 font-medium">{t.name}</td>
-                    <td className="py-1.5 text-zinc-500">{t.department ?? "—"}</td>
+                    <td className="py-1.5 text-ink-secondary">{t.department ?? "—"}</td>
                     <td className="py-1.5 text-right">{formatMinutes(t.minutes)}</td>
                     <td className="py-1.5 text-right">
                       <LevelBadge level={overtimeLevel(t.minutes)} />

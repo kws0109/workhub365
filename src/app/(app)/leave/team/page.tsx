@@ -56,14 +56,14 @@ export default async function TeamLeavePage() {
 
   return (
     <div>
-      <p className="text-xs text-zinc-400">
+      <p className="text-xs text-ink-muted">
         같은 부서({me?.department ?? "미지정"}) 구성원의 연차 현황입니다
         {" · "}총 연차 = 잔여 + 사용(승인된 연차·반차)
       </p>
-      <div className="mt-3 overflow-x-auto rounded-xl border border-zinc-200 bg-white">
+      <div className="mt-3 overflow-x-auto rounded-xl border border-line bg-white">
         <table className="w-full text-sm">
           <thead>
-            <tr className="border-b border-zinc-200 text-left text-xs text-zinc-500">
+            <tr className="border-b border-line text-left text-xs text-ink-secondary">
               <th className="px-4 py-2 font-medium">이름</th>
               <th className="px-4 py-2 text-right font-medium">사용</th>
               <th className="px-4 py-2 text-right font-medium">남은 연차</th>
@@ -75,26 +75,26 @@ export default async function TeamLeavePage() {
             {rows.map((r) => {
               const ratio = r.total > 0 ? Math.min(100, (r.used / r.total) * 100) : 0;
               return (
-                <tr key={r.id} className="border-b border-zinc-100 last:border-0">
+                <tr key={r.id} className="border-b border-fill last:border-0">
                   <td className="px-4 py-2 font-medium">
                     {r.name}
                     {r.isMe && (
-                      <span className="ml-1.5 rounded-full bg-zinc-100 px-1.5 py-0.5 text-xs font-normal text-zinc-500">
+                      <span className="ml-1.5 rounded-full bg-fill px-1.5 py-0.5 text-xs font-normal text-ink-secondary">
                         나
                       </span>
                     )}
                   </td>
-                  <td className="px-4 py-2 text-right text-zinc-600">
+                  <td className="px-4 py-2 text-right text-ink-sub">
                     {r.used}일
                   </td>
                   <td className="px-4 py-2 text-right font-semibold">
                     {r.remaining}일
                   </td>
-                  <td className="px-4 py-2 text-right text-zinc-600">
+                  <td className="px-4 py-2 text-right text-ink-sub">
                     {r.total}일
                   </td>
                   <td className="px-4 py-2">
-                    <div className="h-2 w-full overflow-hidden rounded-full bg-zinc-100">
+                    <div className="h-2 w-full overflow-hidden rounded-full bg-fill">
                       <div
                         className="h-full rounded-full bg-emerald-500"
                         style={{ width: `${ratio}%` }}
@@ -106,7 +106,7 @@ export default async function TeamLeavePage() {
             })}
             {rows.length === 0 && (
               <tr>
-                <td colSpan={5} className="px-4 py-6 text-center text-zinc-400">
+                <td colSpan={5} className="px-4 py-6 text-center text-ink-muted">
                   표시할 구성원이 없습니다
                 </td>
               </tr>

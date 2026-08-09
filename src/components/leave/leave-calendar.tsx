@@ -120,28 +120,28 @@ export function LeaveCalendar({
   );
 
   return (
-    <section className="rounded-xl border border-zinc-200 bg-white p-5">
+    <section className="rounded-xl border border-line bg-white p-5">
       <div className="flex items-center justify-between">
         <h2 className="font-semibold">팀 캘린더</h2>
         <div className="flex items-center gap-2 text-sm">
-          <Link href={`/leave?month=${prevYm}`} className="rounded px-2 py-1 hover:bg-zinc-100">
+          <Link href={`/leave?month=${prevYm}`} className="rounded px-2 py-1 hover:bg-fill">
             ←
           </Link>
           <span className="font-medium">{ym}</span>
-          <Link href={`/leave?month=${nextYm}`} className="rounded px-2 py-1 hover:bg-zinc-100">
+          <Link href={`/leave?month=${nextYm}`} className="rounded px-2 py-1 hover:bg-fill">
             →
           </Link>
         </div>
       </div>
-      <p className="mt-1 text-xs text-zinc-400">
+      <p className="mt-1 text-xs text-ink-muted">
         날짜를 클릭하면 휴가를 신청할 수 있습니다 (주말·휴일 제외) · 점선은 결재
         대기 중인 내 신청
         {visibilityNote && ` · ${visibilityNote}`}
       </p>
 
-      <div className="mt-3 grid grid-cols-7 gap-px overflow-hidden rounded-lg bg-zinc-200 text-xs">
+      <div className="mt-3 grid grid-cols-7 gap-px overflow-hidden rounded-lg bg-line text-xs">
         {["일", "월", "화", "수", "목", "금", "토"].map((d) => (
-          <div key={d} className="bg-zinc-50 px-2 py-1 text-center font-medium text-zinc-500">
+          <div key={d} className="bg-canvas px-2 py-1 text-center font-medium text-ink-secondary">
             {d}
           </div>
         ))}
@@ -186,7 +186,7 @@ export function LeaveCalendar({
               title={nonWorking ? holidayName ?? "휴무일" : `${date} 휴가 신청`}
               className={`flex min-h-16 flex-col items-stretch justify-start p-1 text-left transition ${
                 holidayName || nonWorking ? "bg-red-50/60" : "bg-white"
-              } ${nonWorking ? "cursor-not-allowed" : "cursor-pointer hover:bg-zinc-50"}`}
+              } ${nonWorking ? "cursor-not-allowed" : "cursor-pointer hover:bg-canvas"}`}
             >
               {/* 공휴일 이름은 날짜 줄에 인라인 — 별도 줄을 차지하면 레인
                   기준선이 밀려 이어지는 휴가 바가 공휴일 셀에서 꼬인다 */}
@@ -196,7 +196,7 @@ export function LeaveCalendar({
                     ? "font-medium text-red-500"
                     : nonWorking
                       ? "text-red-400"
-                      : "text-zinc-400"
+                      : "text-ink-muted"
                 }`}
               >
                 {i + 1}
@@ -244,7 +244,7 @@ export function LeaveCalendar({
                     e.stopPropagation();
                     toggleExpanded(weekIdx);
                   }}
-                  className="mt-0.5 self-start rounded px-1 text-zinc-500 hover:bg-zinc-200 hover:text-zinc-700"
+                  className="mt-0.5 self-start rounded px-1 text-ink-secondary hover:bg-line hover:text-ink-body"
                 >
                   {isExpanded ? "접기" : `+${extra}`}
                 </button>
@@ -298,7 +298,7 @@ function RequestModal({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-zinc-900/40 p-4"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-ink/40 p-4"
       onClick={onClose}
     >
       <div
@@ -310,7 +310,7 @@ function RequestModal({
           <button
             type="button"
             onClick={onClose}
-            className="rounded p-1 text-zinc-400 hover:bg-zinc-100"
+            className="rounded p-1 text-ink-muted hover:bg-fill"
             aria-label="닫기"
           >
             ✕
@@ -321,12 +321,12 @@ function RequestModal({
           <fieldset disabled={pending} className="contents">
             <div className="space-y-3">
               <label className="block">
-                <span className="mb-1 block text-xs font-medium text-zinc-500">유형</span>
+                <span className="mb-1 block text-xs font-medium text-ink-secondary">유형</span>
                 <select
                   name="type"
                   value={type}
                   onChange={(e) => setType(e.target.value as LeaveType)}
-                  className="w-full rounded-lg border border-zinc-200 px-3 py-2 text-sm"
+                  className="w-full rounded-lg border border-line px-3 py-2 text-sm"
                 >
                   <option value="annual">연차</option>
                   <option value="half">반차 (0.5일)</option>
@@ -334,7 +334,7 @@ function RequestModal({
                 </select>
               </label>
               <label className="block">
-                <span className="mb-1 block text-xs font-medium text-zinc-500">
+                <span className="mb-1 block text-xs font-medium text-ink-secondary">
                   시작일
                 </span>
                 <input
@@ -351,12 +351,12 @@ function RequestModal({
                     }
                     setStartDate(next);
                   }}
-                  className="w-full rounded-lg border border-zinc-200 px-3 py-2 text-sm"
+                  className="w-full rounded-lg border border-line px-3 py-2 text-sm"
                 />
               </label>
               {type !== "half" && (
                 <label className="block">
-                  <span className="mb-1 block text-xs font-medium text-zinc-500">
+                  <span className="mb-1 block text-xs font-medium text-ink-secondary">
                     종료일 (기본: 하루)
                   </span>
                   <input
@@ -365,22 +365,22 @@ function RequestModal({
                     min={startDate}
                     value={endDate}
                     onChange={(e) => setEndDate(e.target.value)}
-                    className="w-full rounded-lg border border-zinc-200 px-3 py-2 text-sm"
+                    className="w-full rounded-lg border border-line px-3 py-2 text-sm"
                   />
                 </label>
               )}
               <label className="block">
-                <span className="mb-1 block text-xs font-medium text-zinc-500">
+                <span className="mb-1 block text-xs font-medium text-ink-secondary">
                   사유 (선택)
                 </span>
                 <input
                   name="reason"
-                  className="w-full rounded-lg border border-zinc-200 px-3 py-2 text-sm"
+                  className="w-full rounded-lg border border-line px-3 py-2 text-sm"
                 />
               </label>
             </div>
 
-            <p className="mt-3 text-xs text-zinc-500">
+            <p className="mt-3 text-xs text-ink-secondary">
               예상 차감:{" "}
               <span className={`font-semibold ${overBalance ? "text-red-600" : ""}`}>
                 {type === "sick" ? "0일 (병가)" : `${days}일`}
@@ -406,14 +406,14 @@ function RequestModal({
               <button
                 type="button"
                 onClick={onClose}
-                className="rounded-lg border border-zinc-200 px-4 py-2 text-sm hover:bg-zinc-50"
+                className="rounded-lg border border-line px-4 py-2 text-sm hover:bg-canvas"
               >
                 취소
               </button>
               <button
                 type="submit"
                 disabled={days <= 0 || overBalance || pending}
-                className="rounded-lg bg-zinc-900 px-4 py-2 text-sm font-medium text-white hover:bg-zinc-700 disabled:opacity-40"
+                className="rounded-lg bg-ink px-4 py-2 text-sm font-medium text-white hover:bg-ink-body disabled:opacity-40"
               >
                 {pending ? "신청 중…" : "신청"}
               </button>

@@ -21,7 +21,7 @@ const STATUS_META = {
   approved_1: { label: "1차 승인", cls: "bg-blue-50 text-blue-600" },
   approved: { label: "승인", cls: "bg-emerald-50 text-emerald-600" },
   rejected: { label: "반려", cls: "bg-red-50 text-red-600" },
-  cancelled: { label: "취소", cls: "bg-zinc-100 text-zinc-500" },
+  cancelled: { label: "취소", cls: "bg-fill text-ink-secondary" },
 } as const;
 
 export default async function LeavePage({
@@ -176,30 +176,30 @@ export default async function LeavePage({
 
       <div className="mt-6">
         {/* 내 신청 */}
-        <section className="rounded-xl border border-zinc-200 bg-white p-5">
+        <section className="rounded-xl border border-line bg-white p-5">
           <div className="flex items-baseline justify-between">
             <h2 className="font-semibold">내 신청</h2>
-            <p className="text-sm text-zinc-500">
+            <p className="text-sm text-ink-secondary">
               잔여 연차{" "}
-              <span className="font-bold text-zinc-900">
+              <span className="font-bold text-ink">
                 {Number(me?.annualLeaveDays ?? 0)}일
               </span>
             </p>
           </div>
           <ul className="mt-3 space-y-2">
             {myRequests.length === 0 && (
-              <li className="text-sm text-zinc-400">신청 내역이 없습니다</li>
+              <li className="text-sm text-ink-muted">신청 내역이 없습니다</li>
             )}
             {myRequests.map((r) => (
               <li
                 key={r.id}
-                className="flex items-center justify-between rounded-lg border border-zinc-100 px-3 py-2 text-sm"
+                className="flex items-center justify-between rounded-lg border border-fill px-3 py-2 text-sm"
               >
                 <div>
                   <span className="font-medium">{TYPE_LABEL[r.type]}</span>{" "}
                   {r.startDate}
                   {r.endDate !== r.startDate && ` ~ ${r.endDate}`}{" "}
-                  <span className="text-zinc-400">({Number(r.days)}일)</span>
+                  <span className="text-ink-muted">({Number(r.days)}일)</span>
                   {r.rejectReason && (
                     <p className="text-xs text-red-500">
                       반려 사유: {r.rejectReason}
@@ -211,7 +211,7 @@ export default async function LeavePage({
                   {r.status === "pending" && (
                     <ActionForm action={cancelLeave}>
                       <input type="hidden" name="requestId" value={r.id} />
-                      <button className="text-xs text-zinc-400 underline-offset-2 hover:underline">
+                      <button className="text-xs text-ink-muted underline-offset-2 hover:underline">
                         취소
                       </button>
                     </ActionForm>
@@ -225,18 +225,18 @@ export default async function LeavePage({
 
       {/* 결재함 */}
       {isApprover && (
-        <section className="mt-6 rounded-xl border border-zinc-200 bg-white p-5">
+        <section className="mt-6 rounded-xl border border-line bg-white p-5">
           <h2 className="font-semibold">
             결재함
             {role === "manager" && (
-              <span className="ml-2 text-xs font-normal text-zinc-400">
+              <span className="ml-2 text-xs font-normal text-ink-muted">
                 {me?.department ?? "부서 미지정"} 부서만 표시
               </span>
             )}
           </h2>
           <ul className="mt-3 space-y-2">
             {inbox.length === 0 && (
-              <li className="text-sm text-zinc-400">대기 중인 결재가 없습니다</li>
+              <li className="text-sm text-ink-muted">대기 중인 결재가 없습니다</li>
             )}
             {inbox.map((r) => {
               // 최종 승인(approved_1)은 admin만 가능 — manager에게 실패할 버튼을 보여주지 않는다
@@ -244,19 +244,19 @@ export default async function LeavePage({
               return (
                 <li
                   key={r.id}
-                  className="rounded-lg border border-zinc-100 px-3 py-2 text-sm"
+                  className="rounded-lg border border-fill px-3 py-2 text-sm"
                 >
                   <div className="flex items-center justify-between">
                     <div>
                       <span className="font-medium">{r.userName}</span>
-                      <span className="ml-1 text-xs text-zinc-400">
+                      <span className="ml-1 text-xs text-ink-muted">
                         {r.department ?? ""}
                       </span>{" "}
                       · {TYPE_LABEL[r.type]} {r.startDate}
                       {r.endDate !== r.startDate && ` ~ ${r.endDate}`}{" "}
-                      <span className="text-zinc-400">({Number(r.days)}일)</span>
+                      <span className="text-ink-muted">({Number(r.days)}일)</span>
                       {r.reason && (
-                        <span className="ml-1 text-xs text-zinc-400">
+                        <span className="ml-1 text-xs text-ink-muted">
                           — {r.reason}
                         </span>
                       )}
@@ -269,7 +269,7 @@ export default async function LeavePage({
                       <input
                         name="rejectReason"
                         placeholder="반려 시 사유 (필수)"
-                        className="flex-1 rounded-lg border border-zinc-200 px-2 py-1 text-xs"
+                        className="flex-1 rounded-lg border border-line px-2 py-1 text-xs"
                       />
                       {canApprove && (
                         <button
@@ -298,17 +298,17 @@ export default async function LeavePage({
 
       {/* 휴일 관리 (admin) */}
       {role === "admin" && (
-        <section className="mt-6 rounded-xl border border-zinc-200 bg-white p-5">
+        <section className="mt-6 rounded-xl border border-line bg-white p-5">
           <div className="flex items-center justify-between">
             <h2 className="font-semibold">휴일 관리</h2>
             <ActionForm action={resyncHolidays}>
               <input type="hidden" name="year" value={y} />
-              <button className="rounded-lg border border-zinc-300 px-3 py-1.5 text-xs font-medium hover:bg-zinc-50">
+              <button className="rounded-lg border border-line-strong px-3 py-1.5 text-xs font-medium hover:bg-canvas">
                 {y}년 공휴일 다시 동기화
               </button>
             </ActionForm>
           </div>
-          <p className="mt-1 text-xs text-zinc-400">
+          <p className="mt-1 text-xs text-ink-muted">
             공휴일은 자동 수집(Nager.Date)되며, 전사 휴일·임시 공휴일을 직접
             추가할 수 있습니다. 휴일은 휴가 일수 계산에서 제외됩니다.
           </p>
@@ -318,27 +318,27 @@ export default async function LeavePage({
                 type="date"
                 name="date"
                 required
-                className="rounded-lg border border-zinc-200 px-3 py-1.5 text-sm"
+                className="rounded-lg border border-line px-3 py-1.5 text-sm"
               />
               <input
                 name="name"
                 required
                 placeholder="휴일 이름 (예: 창립기념일)"
-                className="rounded-lg border border-zinc-200 px-3 py-1.5 text-sm"
+                className="rounded-lg border border-line px-3 py-1.5 text-sm"
               />
-              <button className="rounded-lg bg-zinc-900 px-3 py-1.5 text-sm font-medium text-white hover:bg-zinc-700">
+              <button className="rounded-lg bg-ink px-3 py-1.5 text-sm font-medium text-white hover:bg-ink-body">
                 전사 휴일 추가
               </button>
             </div>
           </ActionForm>
           <ul className="mt-3 grid grid-cols-1 gap-1 sm:grid-cols-2">
             {monthHolidays.length === 0 && (
-              <li className="text-sm text-zinc-400">{ym}에 휴일이 없습니다</li>
+              <li className="text-sm text-ink-muted">{ym}에 휴일이 없습니다</li>
             )}
             {monthHolidays.map((h) => (
               <li
                 key={h.id}
-                className="flex items-center justify-between rounded-lg border border-zinc-100 px-3 py-1.5 text-sm"
+                className="flex items-center justify-between rounded-lg border border-fill px-3 py-1.5 text-sm"
               >
                 <span>
                   {h.date} {h.name}
@@ -354,7 +354,7 @@ export default async function LeavePage({
                 </span>
                 <ActionForm action={deleteHoliday}>
                   <input type="hidden" name="id" value={h.id} />
-                  <button className="text-xs text-zinc-400 underline-offset-2 hover:underline">
+                  <button className="text-xs text-ink-muted underline-offset-2 hover:underline">
                     삭제
                   </button>
                 </ActionForm>

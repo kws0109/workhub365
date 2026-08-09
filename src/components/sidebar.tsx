@@ -187,7 +187,7 @@ export function Sidebar({
         href={m.href}
         aria-current={active ? "page" : undefined}
         className={`flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-medium transition ${
-          active ? "bg-zinc-900 text-white" : "text-zinc-600 hover:bg-zinc-100"
+          active ? "bg-ink text-white" : "text-ink-sub hover:bg-fill"
         }`}
       >
         <Icon>{ICONS[m.icon]}</Icon>
@@ -200,7 +200,7 @@ export function Sidebar({
         {m.href === "/mail" && unreadMail !== null && unreadMail > 0 && (
           <span
             className={`ml-auto rounded-full px-1.5 py-0.5 text-[11px] font-semibold leading-none ${
-              active ? "bg-white/20 text-white" : "bg-zinc-100 text-zinc-600"
+              active ? "bg-white/20 text-white" : "bg-fill text-ink-sub"
             }`}
           >
             {unreadMail > 99 ? "99+" : unreadMail}
@@ -213,37 +213,37 @@ export function Sidebar({
   return (
     <nav className="flex flex-1 flex-col gap-5 overflow-y-auto p-3">
       <div className="flex flex-col gap-1">
-        <p className="px-3 pb-1 text-xs font-medium text-zinc-400">내 업무</p>
+        <p className="px-3 pb-1 text-xs font-medium text-ink-muted">내 업무</p>
         {MY_MENU.map(renderItem)}
       </div>
       <div className="flex flex-col gap-1">
-        <p className="px-3 pb-1 text-xs font-medium text-zinc-400">협업</p>
+        <p className="px-3 pb-1 text-xs font-medium text-ink-muted">협업</p>
         {COLLAB_MENU.map(renderItem)}
       </div>
       {/* R5.1 전직원 개방(B15) — 도구는 역할 차등(minRole), 변경형은 admin 승인 필수 */}
       <div className="flex flex-col gap-1">
-        <p className="px-3 pb-1 text-xs font-medium text-zinc-400">AI</p>
+        <p className="px-3 pb-1 text-xs font-medium text-ink-muted">AI</p>
         {AI_MENU.map(renderItem)}
       </div>
       {role === "admin" && (
         <div className="flex flex-col gap-1">
-          <p className="px-3 pb-1 text-xs font-medium text-zinc-400">관리</p>
+          <p className="px-3 pb-1 text-xs font-medium text-ink-muted">관리</p>
           {ADMIN_MENU.map(renderItem)}
         </div>
       )}
-      <div className="mt-auto flex flex-col gap-0.5 border-t border-zinc-100 pt-3">
-        <p className="px-3 pb-1 text-xs font-medium text-zinc-400">M365 앱</p>
+      <div className="mt-auto flex flex-col gap-0.5 border-t border-fill pt-3">
+        <p className="px-3 pb-1 text-xs font-medium text-ink-muted">M365 앱</p>
         {M365_APPS.map((m) => (
           <a
             key={m.href}
             href={m.href}
             target="_blank"
             rel="noopener noreferrer"
-            className="group flex items-center gap-2.5 rounded-lg px-3 py-1.5 text-[13px] text-zinc-400 transition hover:bg-zinc-50 hover:text-zinc-600"
+            className="group flex items-center gap-2.5 rounded-lg px-3 py-1.5 text-[13px] text-ink-muted transition hover:bg-canvas hover:text-ink-sub"
           >
             <Icon>{ICONS[m.icon]}</Icon>
             {m.label}
-            <span className="ml-auto text-zinc-300 transition group-hover:text-zinc-500">
+            <span className="ml-auto text-line-strong transition group-hover:text-ink-secondary">
               <Icon className="h-3 w-3 shrink-0">{ICONS.external}</Icon>
             </span>
           </a>
