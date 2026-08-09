@@ -5,6 +5,8 @@ declare module "next-auth" {
     user: {
       id: string;
       role: "admin" | "manager" | "employee";
+      /** 인사 정정 권한 (role과 직교) — 판정은 lib/hr.ts의 isHrEditor로만 한다 */
+      hrAdmin: boolean;
     } & DefaultSession["user"];
   }
 
@@ -20,6 +22,8 @@ declare module "next-auth/jwt" {
     oid?: string;
     dbId?: string;
     role?: "admin" | "manager" | "employee";
+    /** 인사 정정 권한 — role과 같은 주기로 갱신된다 (undefined면 fail-closed) */
+    hrAdmin?: boolean;
     /** 역할/삭제 확인을 마지막으로 수행한 시각 (epoch ms) — 60초 스로틀용 */
     roleCheckedAt?: number;
     /** 위임 Graph 액세스 토큰 — 서버 전용(lib/graph/delegated.ts)으로만 읽는다.

@@ -1,6 +1,7 @@
 import { cache } from "react";
 import { redirect } from "next/navigation";
 import { auth } from "@/auth";
+import { isHrEditor } from "@/lib/hr";
 
 type Role = "admin" | "manager" | "employee";
 
@@ -33,5 +34,22 @@ export async function assertSession() {
 export async function assertRole(...roles: Role[]) {
   const session = await assertSession();
   if (!roles.includes(session.user.role)) throw new Error("FORBIDDEN");
+  return session;
+}
+
+// 인사 정정 권한(hr_admin)은 role과 직교하므로 requireRole/assertRole로 표현할 수 없다.
+// UI에서 탭을 감추는 것은 권한이 아니다 — 아래 두 가드가 실행 직전에 재검증한다(2중 게이트).
+
+/** 페이지용: 인사 정정 권한 미달 시 홈으로 리다이렉트 (N2) */
+export async function requireHrSession() {
+  const session = await requireSession();
+  if (!isHrEditor(session.user)) redirect("/");
+  return session;
+}
+
+/** Server Action용: 인사 정정 권한 미달 시 throw */
+export async function assertHr() {
+  const session = await assertSession();
+  if (!isHrEditor(session.user)) throw new Error("FORBIDDEN");
   return session;
 }

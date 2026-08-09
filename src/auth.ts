@@ -4,12 +4,22 @@ import { eq } from "drizzle-orm";
 import { db } from "@/db";
 import { users } from "@/db/schema";
 
-function isBootstrapAdmin(email: string): boolean {
-  return (process.env.ADMIN_EMAILS ?? "")
+function emailListHas(raw: string | undefined, email: string): boolean {
+  return (raw ?? "")
     .split(",")
     .map((e) => e.trim().toLowerCase())
     .filter(Boolean)
     .includes(email.toLowerCase());
+}
+
+function isBootstrapAdmin(email: string): boolean {
+  return emailListHas(process.env.ADMIN_EMAILS, email);
+}
+
+// 인사 정정 권한(hr_admin) 부트스트랩 — ADMIN_EMAILS와 대칭으로 승격 전용이다.
+// 목록에서 빼도 자동 회수되지 않는다(회수는 DB 직접 수정 — requirements.md 한계 명시)
+function isBootstrapHr(email: string): boolean {
+  return emailListHas(process.env.HR_EMAILS, email);
 }
 
 // 허용 테넌트: ISSUER URL의 테넌트 GUID가 1차 소스 (GRAPH_TENANT_ID는 백업).
@@ -58,6 +68,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       const email = rawEmail.toLowerCase();
       const name = typeof profile.name === "string" ? profile.name : email;
       const wantAdmin = isBootstrapAdmin(email);
+      const wantHr = isBootstrapHr(email);
 
       // 식별자는 불변 oid(entraId). 이메일은 변경·재활용될 수 있어 매칭 키로 쓰지 않는다
       const byOid = await db.query.users.findFirst({
@@ -73,6 +84,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
             ...(wantAdmin && byOid.role !== "admin"
               ? { role: "admin" as const }
               : {}),
+            ...(wantHr && !byOid.hrAdmin ? { hrAdmin: true } : {}),
           })
           .where(eq(users.id, byOid.id));
         return true;
@@ -93,6 +105,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
             ...(wantAdmin && byEmail.role !== "admin"
               ? { role: "admin" as const }
               : {}),
+            ...(wantHr && !byEmail.hrAdmin ? { hrAdmin: true } : {}),
           })
           .where(eq(users.id, byEmail.id));
         return true;
@@ -106,6 +119,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           email,
           name,
           role: wantAdmin ? "admin" : "employee",
+          hrAdmin: wantHr,
         })
         .onConflictDoUpdate({
           target: users.entraId,
@@ -140,11 +154,13 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         if (row) {
           token.dbId = row.id;
           token.role = row.role;
+          token.hrAdmin = row.hrAdmin;
           token.name = row.name;
         } else {
           // 행이 삭제된 사용자는 fail-closed — 세션에서 신원 제거
           delete token.dbId;
           delete token.role;
+          delete token.hrAdmin;
         }
         token.roleCheckedAt = Date.now();
       }
@@ -154,6 +170,8 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       if (token.dbId) {
         session.user.id = token.dbId as string;
         session.user.role = token.role as "admin" | "manager" | "employee";
+        // === true로 강제 — undefined(구토큰·삭제 사용자)를 false로 접는다 (fail-closed)
+        session.user.hrAdmin = token.hrAdmin === true;
       }
       return session;
     },

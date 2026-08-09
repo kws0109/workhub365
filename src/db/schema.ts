@@ -48,6 +48,9 @@ export const users = pgTable("users", {
   annualLeaveDays: numeric("annual_leave_days", { precision: 4, scale: 1 })
     .notNull()
     .default("15"),
+  // 인사 정정 권한 — role(결재 서열)과 직교. 타인 근태·휴가 정정만 허용 (R4.4/R3.9).
+  // roleEnum에 값을 더하지 않는 이유는 src/lib/hr.ts 주석 참조
+  hrAdmin: boolean("hr_admin").notNull().default(false),
   createdAt: timestamp("created_at", { withTimezone: true })
     .notNull()
     .defaultNow(),
