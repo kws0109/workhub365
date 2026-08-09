@@ -2,7 +2,7 @@ import "server-only";
 
 import { cookies } from "next/headers";
 import { decode, type JWT } from "next-auth/jwt";
-import { GraphError } from "./client";
+import { GraphError, REQUEST_TIMEOUT_MS, toGraphTimeout } from "./client";
 
 // 위임(delegated) Graph 접근 — 로그인 사용자 본인의 데이터(메일·일정)만 읽는다.
 // 아키텍처 규칙: app-only(관리)와 위임(개인) 자격 증명을 섞지 않는다.
@@ -84,13 +84,17 @@ async function refreshDelegatedToken(
     `https://login.microsoftonline.com/${tenantId}/oauth2/v2.0/token`,
     {
       method: "POST",
+      // app-only 토큰 엔드포인트와 동일 — 매달리면 위임 경로 전체가 멈춘다
+      signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
       headers: { "Content-Type": "application/x-www-form-urlencoded" },
       body: new URLSearchParams({
         client_id: clientId,
         client_secret: clientSecret,
         grant_type: "refresh_token",
         refresh_token: refreshToken,
-        scope: "openid profile email User.Read Mail.Read Calendars.Read offline_access",
+        // auth.ts의 로그인 scope와 반드시 동기 유지 (스코프 확장 시 두 곳 모두)
+        scope:
+          "openid profile email User.Read Mail.Read Calendars.ReadWrite Files.Read Presence.Read.All offline_access",
       }),
     },
   );
@@ -172,12 +176,13 @@ export async function delegatedGraphFetch<T>(
   for (;;) {
     const res = await fetch(`${GRAPH_BASE}${path}`, {
       ...init,
+      signal: init?.signal ?? AbortSignal.timeout(REQUEST_TIMEOUT_MS),
       headers: {
         Authorization: `Bearer ${token}`,
         "Content-Type": "application/json",
         ...init?.headers,
       },
-    });
+    }).catch(toGraphTimeout);
 
     if ((res.status === 429 || res.status === 503) && !retried) {
       await res.body?.cancel();

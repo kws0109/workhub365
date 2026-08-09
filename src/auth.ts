@@ -27,10 +27,14 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     MicrosoftEntraID({
       authorization: {
         params: {
-          // 기본 스코프 + 홈 대시보드 M365 위젯(R7.4)용 메일·일정 읽기.
-          // offline_access: 리프레시 토큰 발급 — 액세스 토큰(~1시간) 만료 후 위젯 유지
+          // 기본 스코프 + M365 위젯·협업 화면(M8)용 위임 읽기 + 회의실 예약 쓰기.
+          // Calendars.ReadWrite: Read에서 승격(회의실 예약 B6 — 유일한 쓰기 위임),
+          // Files.Read: 문서함·최근 문서, Presence.Read.All: 조직도 프레즌스.
+          // offline_access: 리프레시 토큰 발급 — 액세스 토큰(~1시간) 만료 후 위젯 유지.
+          // 스코프 변경 시 기존 세션은 위젯 강등 → 재로그인 동의로 회복 (delegated.ts의
+          // 리프레시 scope 문자열도 함께 갱신할 것)
           scope:
-            "openid profile email User.Read Mail.Read Calendars.Read offline_access",
+            "openid profile email User.Read Mail.Read Calendars.ReadWrite Files.Read Presence.Read.All offline_access",
         },
       },
     }),
