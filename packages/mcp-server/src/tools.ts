@@ -57,6 +57,16 @@ const userIdField = z
   .min(10)
   .describe("대상 사용자의 Entra 객체 ID(GUID). find_users로 먼저 조회한다");
 
+/**
+ * 요약문에 넣는 GUID 축약(앞 8자). 이 패키지는 DB·Graph에 의존하지 않는 것이
+ * 구조적 원칙이라 여기서는 이름을 알 수 없다 — 승인 카드에 실제 이름을 싣는 보강은
+ * 해석 결과를 가진 호스트(src/lib/assistant/execute.ts)가 하고, 이 문자열은
+ * 해석이 불가능한 경우(stdio 등)의 폴백으로 남는다.
+ */
+function shortId(id: string): string {
+  return id.length > 8 ? `${id.slice(0, 8)}…` : id;
+}
+
 export const TOOLS: ToolDef[] = [
   // ── 조회형 (즉시 실행) ────────────────────────────────────────────────
   defineTool({
@@ -148,9 +158,9 @@ export const TOOLS: ToolDef[] = [
     requiresApproval: true,
     minRole: "admin",
     summarize: (i) =>
-      `계정 생성: ${i.displayName} (${i.mailNickname})` +
-      (i.skuIds?.length ? ` + 라이선스 ${i.skuIds.length}개` : "") +
-      (i.groupIds?.length ? ` + 그룹 ${i.groupIds.length}개` : ""),
+      `계정 생성 · ${i.displayName} (${i.mailNickname})` +
+      (i.skuIds?.length ? ` — 라이선스 ${i.skuIds.length}개` : "") +
+      (i.groupIds?.length ? ` · 그룹 ${i.groupIds.length}개` : ""),
     execute: (i, ctx) => ctx.createUser(i),
   }),
   defineTool({
@@ -160,7 +170,7 @@ export const TOOLS: ToolDef[] = [
     inputSchema: z.object({ userId: userIdField }),
     requiresApproval: true,
     minRole: "admin",
-    summarize: (i) => `계정 차단: ${i.userId}`,
+    summarize: (i) => `계정 차단 · 사용자 ${shortId(i.userId)}`,
     execute: async (i, ctx) => {
       await ctx.blockUser(i.userId);
       return { blocked: true, userId: i.userId };
@@ -173,7 +183,7 @@ export const TOOLS: ToolDef[] = [
     inputSchema: z.object({ userId: userIdField }),
     requiresApproval: true,
     minRole: "admin",
-    summarize: (i) => `세션 철회: ${i.userId}`,
+    summarize: (i) => `세션 철회 · 사용자 ${shortId(i.userId)}`,
     execute: async (i, ctx) => {
       await ctx.revokeUserSessions(i.userId);
       return { revoked: true, userId: i.userId };
@@ -189,7 +199,8 @@ export const TOOLS: ToolDef[] = [
     }),
     requiresApproval: true,
     minRole: "admin",
-    summarize: (i) => `라이선스 회수: 사용자 ${i.userId}, SKU ${i.skuId}`,
+    summarize: (i) =>
+      `라이선스 회수 · 사용자 ${shortId(i.userId)} — SKU ${shortId(i.skuId)}`,
     execute: async (i, ctx) => {
       await ctx.removeUserLicense(i.userId, i.skuId);
       return { removed: true, userId: i.userId, skuId: i.skuId };
@@ -205,7 +216,8 @@ export const TOOLS: ToolDef[] = [
     }),
     requiresApproval: true,
     minRole: "admin",
-    summarize: (i) => `그룹 제거: 사용자 ${i.userId}, 그룹 ${i.groupId}`,
+    summarize: (i) =>
+      `그룹 제거 · 사용자 ${shortId(i.userId)} — 그룹 ${shortId(i.groupId)}`,
     execute: async (i, ctx) => {
       await ctx.removeUserFromGroup(i.userId, i.groupId);
       return { removed: true, userId: i.userId, groupId: i.groupId };

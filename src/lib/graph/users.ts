@@ -1,5 +1,5 @@
 import { cachedGraph } from "./cache";
-import { graphFetch, graphGetAll, graphGetAllPaged } from "./client";
+import { GraphError, graphFetch, graphGetAll, graphGetAllPaged } from "./client";
 
 // 999명/페이지 × 50페이지 — licenses.ts와 동일한 대형 테넌트 방어선
 const MAX_PAGES = 50;
@@ -134,13 +134,76 @@ export async function getUserGroupIds(
     }));
 }
 
-export async function getUserBasic(
+export type UserBasic = {
+  id: string;
+  displayName: string;
+  userPrincipalName: string;
+};
+
+/**
+ * "대상이 존재하지 않음"으로 확정할 수 있는 Graph 오류인지.
+ * 404는 물론, GUID/UPN 형식이 아닌 id로 인한 400도 재시도해봐야 달라지지 않으므로
+ * 부재로 본다. 403·429·5xx·타임아웃은 부재의 증거가 아니므로 여기서 제외한다.
+ */
+function isTargetNotFound(e: unknown): boolean {
+  if (!(e instanceof GraphError)) return false;
+  if (e.status === 404) return true;
+  return (
+    e.status === 400 &&
+    /Request_BadRequest|Invalid object identifier|invalid/i.test(
+      `${e.code} ${e.message}`,
+    )
+  );
+}
+
+/**
+ * 승인 카드용 사용자 이름 해석.
+ * 부재는 null, 그 밖의 Graph 오류(권한·스로틀·타임아웃)는 그대로 던진다 —
+ * 호출부가 "대상 없음"(승인 요청 생성 중단)과 "일시 장애"(이름 없이 진행)를
+ * 구분해야 하기 때문. 오류를 전부 null로 뭉개는 관대 버전은 아래 getUserBasic이다.
+ */
+export async function lookupUserBasic(
   userId: string,
-): Promise<{ id: string; userPrincipalName: string } | null> {
+): Promise<UserBasic | null> {
   try {
-    return await graphFetch(`/users/${userId}?$select=id,userPrincipalName`);
+    return await graphFetch<UserBasic>(
+      `/users/${userId}?$select=id,displayName,userPrincipalName`,
+    );
+  } catch (e) {
+    if (isTargetNotFound(e)) return null;
+    throw e;
+  }
+}
+
+/**
+ * 오류를 전부 null로 강등하는 관대 버전 — 온보딩 재개 대상 검증처럼
+ * "확인되지 않으면 진행하지 않는다"(fail-closed) 호출부용.
+ */
+export async function getUserBasic(userId: string): Promise<UserBasic | null> {
+  try {
+    return await lookupUserBasic(userId);
   } catch {
     return null;
+  }
+}
+
+/**
+ * 승인 카드용 그룹 이름 해석. 부재는 null, 일시 장애는 던진다(lookupUserBasic과 동일 규약).
+ * 캐시된 목록(list_groups와 공유)에서 먼저 찾고 없을 때만 단건 조회로 확인한다 —
+ * 목록은 60초 캐시·페이지 상한이 있어 "목록에 없음"만으로 부재를 단정할 수 없다.
+ */
+export async function lookupGroupBasic(
+  groupId: string,
+): Promise<DirectoryGroup | null> {
+  const cached = (await getGroups()).find((g) => g.id === groupId);
+  if (cached) return cached;
+  try {
+    return await graphFetch<DirectoryGroup>(
+      `/groups/${groupId}?$select=id,displayName`,
+    );
+  } catch (e) {
+    if (isTargetNotFound(e)) return null;
+    throw e;
   }
 }
 

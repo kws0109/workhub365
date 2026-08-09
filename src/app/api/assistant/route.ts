@@ -220,6 +220,9 @@ export async function POST(req: Request) {
                 toolName: outcome.toolName,
                 summary: outcome.summary,
                 input: outcome.input,
+                // 이름↔GUID 매핑을 서버에서 함께 내려준다 — 승인 카드가 GUID만
+                // 보여주면 승인자가 대상을 검증할 수 없다
+                targets: outcome.targets,
                 expiresAt: outcome.expiresAt,
               });
               results.push({

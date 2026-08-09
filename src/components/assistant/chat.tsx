@@ -22,6 +22,19 @@ type ApprovalCardStatus =
   | "rejected"
   | "expired";
 
+/**
+ * 서버(execute.ts)가 app-only Graph로 해석해 내려준 승인 대상.
+ * 승인자는 GUID가 아니라 이 이름을 보고 판단한다 — 서버 타입(ApprovalTargets)의
+ * 클라이언트 사본이며, 스트림 이벤트에서 오므로 필드 존재를 가정하지 않는다.
+ */
+type ApprovalTargets = {
+  user?: { id: string; displayName: string; userPrincipalName: string };
+  skus?: { id: string; displayName: string }[];
+  groups?: { id: string; displayName: string }[];
+  /** Graph 일시 장애로 이름을 해석하지 못한 경우의 사유 */
+  unresolved?: string;
+};
+
 type ChatItem =
   | { kind: "user"; id: number; text: string }
   | { kind: "assistant"; id: number; text: string; streaming: boolean }
@@ -39,6 +52,7 @@ type ChatItem =
       toolName: string;
       summary: string;
       input: unknown;
+      targets?: ApprovalTargets;
       status: ApprovalCardStatus;
       /** 만료 시각(ISO) — 카운트 표시 전용, 만료 판정의 진실은 서버 */
       expiresAt?: string;
@@ -230,6 +244,10 @@ export function AssistantChat({
                 toolName: ev.toolName as string,
                 summary: ev.summary as string,
                 input: ev.input,
+                targets:
+                  typeof ev.targets === "object" && ev.targets !== null
+                    ? (ev.targets as ApprovalTargets)
+                    : undefined,
                 status: "pending",
                 expiresAt:
                   typeof ev.expiresAt === "string" ? ev.expiresAt : undefined,
@@ -341,14 +359,14 @@ export function AssistantChat({
   }
 
   return (
-    <div className="mt-4 flex min-h-0 flex-1 flex-col rounded-xl border border-zinc-200 bg-white">
+    <div className="mt-4 flex min-h-0 flex-1 flex-col rounded-xl border border-line bg-white">
       {items.length > 0 && (
-        <div className="flex justify-end border-b border-zinc-100 px-3 py-1.5">
+        <div className="flex justify-end border-b border-fill px-3 py-1.5">
           <button
             type="button"
             onClick={resetConversation}
             disabled={busy}
-            className="text-xs text-zinc-400 hover:text-zinc-600 disabled:opacity-40"
+            className="text-xs text-ink-muted hover:text-ink-sub disabled:opacity-40"
           >
             새 대화
           </button>
@@ -360,7 +378,7 @@ export function AssistantChat({
         style={{ minHeight: "20rem", maxHeight: "60vh" }}
       >
         {items.length === 0 && (
-          <div className="py-10 text-center text-sm text-zinc-400">
+          <div className="py-10 text-center text-sm text-ink-muted">
             <p>
               무엇을 도와드릴까요? 아래 추천 프롬프트를 눌러 시작해 보세요 —
               조회는 즉시, 변경 작업은 승인 후 실행됩니다.
@@ -377,12 +395,12 @@ export function AssistantChat({
           />
         ))}
         {busy && (
-          <div className="text-xs text-zinc-400" aria-live="polite">
+          <div className="text-xs text-ink-muted" aria-live="polite">
             어시스턴트가 응답 중…
           </div>
         )}
       </div>
-      <div className="border-t border-zinc-200 p-3">
+      <div className="border-t border-line p-3">
         {/* 추천 프롬프트 칩 — 클릭 시 입력창 채움 (목업 규격: 필 999 · 12px) */}
         <div className="mb-2.5 flex flex-wrap gap-1.5">
           {promptChips.map((s) => (
@@ -419,13 +437,13 @@ export function AssistantChat({
           }}
           rows={2}
           placeholder="예: 영업팀에서 최근 30일 미사용 계정 찾아줘"
-          className="min-h-[3rem] flex-1 resize-none rounded-lg border border-zinc-200 px-3 py-2 text-sm focus:border-zinc-400 focus:outline-none"
+          className="min-h-[3rem] flex-1 resize-none rounded-lg border border-line px-3 py-2 text-sm focus:border-ink-muted focus:outline-none"
           disabled={busy}
         />
         <button
           type="submit"
           disabled={busy || !input.trim()}
-          className="rounded-lg bg-zinc-900 px-4 py-2 text-sm font-medium text-white hover:bg-zinc-700 disabled:opacity-40"
+          className="rounded-lg bg-ink px-4 py-2 text-sm font-medium text-white hover:bg-ink-body disabled:opacity-40"
         >
           보내기
         </button>
@@ -449,7 +467,7 @@ function ChatItemView({
   if (item.kind === "user") {
     return (
       <div className="flex justify-end">
-        <div className="max-w-[85%] whitespace-pre-wrap rounded-2xl bg-zinc-900 px-4 py-2 text-sm text-white">
+        <div className="max-w-[85%] whitespace-pre-wrap rounded-2xl bg-ink px-4 py-2 text-sm text-white">
           {item.text}
         </div>
       </div>
@@ -458,7 +476,7 @@ function ChatItemView({
   if (item.kind === "assistant") {
     return (
       <div className="flex">
-        <div className="max-w-[85%] whitespace-pre-wrap rounded-2xl border border-zinc-200 bg-zinc-50 px-4 py-2 text-sm text-zinc-800">
+        <div className="max-w-[85%] whitespace-pre-wrap rounded-2xl border border-line bg-canvas px-4 py-2 text-sm text-ink-body">
           {item.text}
           {item.streaming && <span className="animate-pulse">▍</span>}
         </div>
@@ -467,11 +485,11 @@ function ChatItemView({
   }
   if (item.kind === "tool") {
     return (
-      <div className="flex items-center gap-2 pl-1 text-xs text-zinc-500">
+      <div className="flex items-center gap-2 pl-1 text-xs text-ink-secondary">
         <span
           className={
             item.status === "run"
-              ? "inline-block h-2 w-2 animate-pulse rounded-full bg-zinc-400"
+              ? "inline-block h-2 w-2 animate-pulse rounded-full bg-ink-muted"
               : item.status === "ok"
                 ? "inline-block h-2 w-2 rounded-full bg-emerald-500"
                 : "inline-block h-2 w-2 rounded-full bg-red-500"
@@ -507,6 +525,60 @@ function ChatItemView({
       onApprove={onApprove}
       onReject={onReject}
     />
+  );
+}
+
+/** GUID 축약 — 이름이 주(主)이고 id는 대조용 보조 표기다 */
+function shortId(id: string): string {
+  return id.length > 8 ? `${id.slice(0, 8)}…` : id;
+}
+
+function TargetRow({
+  label,
+  name,
+  sub,
+  id,
+}: {
+  label: string;
+  name: string;
+  sub?: string;
+  id: string;
+}) {
+  return (
+    <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
+      <span className="w-12 shrink-0 text-xs text-ink-secondary">{label}</span>
+      <span className="text-sm font-medium text-ink">{name}</span>
+      {sub && <span className="text-xs text-ink-sub">{sub}</span>}
+      <code className="font-mono text-[11px] text-ink-muted">{shortId(id)}</code>
+    </div>
+  );
+}
+
+/** 해석된 승인 대상 — 이름을 크게, GUID는 축약해 보조로 */
+function ApprovalTargetList({ targets }: { targets: ApprovalTargets }) {
+  const hasTarget =
+    targets.user || targets.skus?.length || targets.groups?.length;
+  if (!hasTarget && !targets.unresolved) return null;
+  return (
+    <div className="mt-2 space-y-1 rounded-lg bg-white/70 px-3 py-2">
+      {targets.user && (
+        <TargetRow
+          label="대상"
+          name={targets.user.displayName}
+          sub={targets.user.userPrincipalName}
+          id={targets.user.id}
+        />
+      )}
+      {targets.skus?.map((s) => (
+        <TargetRow key={s.id} label="라이선스" name={s.displayName} id={s.id} />
+      ))}
+      {targets.groups?.map((g) => (
+        <TargetRow key={g.id} label="그룹" name={g.displayName} id={g.id} />
+      ))}
+      {targets.unresolved && (
+        <div className="text-[11px] text-amber-700">{targets.unresolved}</div>
+      )}
+    </div>
   );
 }
 
@@ -556,39 +628,44 @@ function ApprovalCardView({
 
   const badge: Record<ApprovalCardStatus, { label: string; cls: string }> = {
     pending: { label: "승인 대기", cls: "bg-amber-100 text-amber-800" },
-    executing: { label: "실행 중…", cls: "bg-zinc-100 text-zinc-600" },
+    executing: { label: "실행 중…", cls: "bg-fill text-ink-sub" },
     executed: { label: "실행 완료", cls: "bg-emerald-50 text-emerald-600" },
     failed: { label: "실패", cls: "bg-red-50 text-red-600" },
-    rejected: { label: "거부됨", cls: "bg-zinc-100 text-zinc-500" },
-    expired: { label: "만료됨", cls: "bg-zinc-100 text-zinc-500" },
+    rejected: { label: "거부됨", cls: "bg-fill text-ink-secondary" },
+    expired: { label: "만료됨", cls: "bg-fill text-ink-secondary" },
   };
   const badgeStatus: ApprovalCardStatus = uiExpired ? "expired" : item.status;
   return (
     <div className="rounded-xl border border-amber-200 bg-amber-50 p-4">
-      <div className="flex items-center justify-between gap-2">
-        <div className="text-sm font-semibold text-zinc-900">
-          승인 필요: {item.summary}
-        </div>
+      <div className="flex items-start justify-between gap-2">
+        {/* 승인자가 가장 먼저 읽어야 하는 것은 도구 이름·GUID가 아니라 "무엇을 누구에게" */}
+        <div className="text-[15px] font-semibold text-ink">{item.summary}</div>
         <span
-          className={`rounded-full px-2 py-0.5 text-xs font-medium ${badge[badgeStatus].cls}`}
+          className={`shrink-0 rounded-full px-2 py-0.5 text-xs font-medium ${badge[badgeStatus].cls}`}
         >
           {badge[badgeStatus].label}
         </span>
       </div>
-      <div className="mt-1 text-xs text-zinc-500">
+      {item.targets && <ApprovalTargetList targets={item.targets} />}
+      <div className="mt-2 text-xs text-ink-secondary">
         도구 <code className="font-mono">{item.toolName}</code> · 15분 내 승인
         필요 · 승인 전에는 실행되지 않습니다
       </div>
-      <pre className="mt-2 overflow-x-auto rounded-lg bg-white/70 p-2 text-xs text-zinc-600">
-        {JSON.stringify(item.input, null, 2)}
-      </pre>
+      <details className="mt-2">
+        <summary className="cursor-pointer text-xs text-ink-muted">
+          원본 입력 보기
+        </summary>
+        <pre className="mt-1 overflow-x-auto rounded-lg bg-white/70 p-2 text-xs text-ink-sub">
+          {JSON.stringify(item.input, null, 2)}
+        </pre>
+      </details>
       {item.status === "pending" && (
         <div className="mt-3 flex flex-wrap items-center gap-2">
           <button
             type="button"
             onClick={() => onApprove(item)}
             disabled={busy || uiExpired}
-            className="rounded-lg bg-zinc-900 px-4 py-2 text-sm font-medium text-white hover:bg-zinc-700 disabled:opacity-40"
+            className="rounded-lg bg-ink px-4 py-2 text-sm font-medium text-white hover:bg-ink-body disabled:opacity-40"
           >
             승인하고 실행
           </button>
@@ -596,7 +673,7 @@ function ApprovalCardView({
             type="button"
             onClick={() => onReject(item)}
             disabled={busy}
-            className="rounded-lg border border-zinc-300 bg-white px-4 py-2 text-sm font-medium text-zinc-700 hover:bg-zinc-50 disabled:opacity-40"
+            className="rounded-lg border border-line-strong bg-white px-4 py-2 text-sm font-medium text-ink-body hover:bg-canvas disabled:opacity-40"
           >
             거부
           </button>
@@ -609,7 +686,7 @@ function ApprovalCardView({
             </span>
           )}
           {busy && (
-            <span className="text-xs text-zinc-400">응답 완료 후 결정할 수 있습니다</span>
+            <span className="text-xs text-ink-muted">응답 완료 후 결정할 수 있습니다</span>
           )}
         </div>
       )}
@@ -633,7 +710,7 @@ function ApprovalCardView({
         <div className="mt-2 text-sm text-red-600">{item.error}</div>
       )}
       {item.status === "expired" && item.error && (
-        <div className="mt-2 text-sm text-zinc-500">{item.error}</div>
+        <div className="mt-2 text-sm text-ink-secondary">{item.error}</div>
       )}
     </div>
   );
