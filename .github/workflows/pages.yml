@@ -1,0 +1,44 @@
+name: Pages
+
+# 데모 소개 페이지(site/) 배포. 스크린샷은 앱이 서빙하는 public/screenshots를
+# 단일 소스로 두고 빌드 시 복사한다 — README와 데모 페이지가 같은 파일을 본다.
+on:
+  push:
+    branches: [main]
+    paths:
+      - "site/**"
+      - "public/screenshots/**"
+      - ".github/workflows/pages.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v5
+      - name: 사이트 조립 (site + 스크린샷)
+        run: |
+          mkdir -p _site/screenshots
+          cp -r site/. _site/
+          if [ -d public/screenshots ]; then
+            cp -r public/screenshots/. _site/screenshots/ || true
+          fi
+          ls -la _site _site/screenshots
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v4
+        with:
+          path: _site
+      - id: deployment
+        uses: actions/deploy-pages@v4
