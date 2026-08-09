@@ -40,6 +40,8 @@ type ChatItem =
       summary: string;
       input: unknown;
       status: ApprovalCardStatus;
+      /** 만료 시각(ISO) — 카운트 표시 전용, 만료 판정의 진실은 서버 */
+      expiresAt?: string;
       resultText?: string;
       tempPassword?: string;
       error?: string;
@@ -48,10 +50,11 @@ type ChatItem =
   | { kind: "error"; id: number; text: string }
   | { kind: "notice"; id: number; text: string };
 
-const SUGGESTIONS = [
-  "미사용 라이선스 낭비 얼마야?",
-  "이번 주 52시간 넘을 것 같은 사람 있어?",
-  "비활성 계정 찾아서 라이선스 회수해줘",
+// 추천 프롬프트 칩 (목업 3종) — 클릭 시 입력창만 채운다 (자동 전송 없음)
+const PROMPT_CHIPS = [
+  "다음 주 금요일 연차 신청해줘",
+  "박태호 오프보딩 상태 알려줘",
+  "이번 달 감사 로그 요약해줘",
 ];
 
 /** 서버 에러 코드 → 사용자 안내문 */
@@ -70,12 +73,14 @@ function newId() {
   return nextId++;
 }
 
-export function AssistantChat() {
+export function AssistantChat({ initialPrompt }: { initialPrompt?: string }) {
   const [items, setItems] = useState<ChatItem[]>([]);
-  const [input, setInput] = useState("");
+  // ?prompt= 프리필 — 서버(page)에서 받은 초기값으로 입력창만 채운다
+  const [input, setInput] = useState(initialPrompt ?? "");
   const [busy, setBusy] = useState(false);
   const rawHistory = useRef<unknown[]>([]);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLTextAreaElement>(null);
 
   useEffect(() => {
     // 사용자가 위로 스크롤해 읽는 중이면 끌어내리지 않는다 (하단 근처일 때만 추적)
@@ -208,6 +213,8 @@ export function AssistantChat() {
                 summary: ev.summary as string,
                 input: ev.input,
                 status: "pending",
+                expiresAt:
+                  typeof ev.expiresAt === "string" ? ev.expiresAt : undefined,
               },
             ]);
           } else if (ev.type === "warning" && ev.code === "AUDIT_WRITE_FAILED") {
@@ -336,19 +343,10 @@ export function AssistantChat() {
       >
         {items.length === 0 && (
           <div className="py-10 text-center text-sm text-zinc-400">
-            <p>무엇을 도와드릴까요? 예시를 눌러 시작해 보세요.</p>
-            <div className="mt-4 flex flex-wrap justify-center gap-2">
-              {SUGGESTIONS.map((s) => (
-                <button
-                  key={s}
-                  type="button"
-                  onClick={() => send(s)}
-                  className="rounded-full border border-zinc-200 px-3 py-1.5 text-xs text-zinc-600 hover:bg-zinc-50"
-                >
-                  {s}
-                </button>
-              ))}
-            </div>
+            <p>
+              무엇을 도와드릴까요? 아래 추천 프롬프트를 눌러 시작해 보세요 —
+              조회는 즉시, 변경 작업은 승인 후 실행됩니다.
+            </p>
           </div>
         )}
         {items.map((item) => (
@@ -366,14 +364,33 @@ export function AssistantChat() {
           </div>
         )}
       </div>
-      <form
-        className="flex items-end gap-2 border-t border-zinc-200 p-3"
-        onSubmit={(e) => {
-          e.preventDefault();
-          void send(input);
-        }}
-      >
+      <div className="border-t border-zinc-200 p-3">
+        {/* 추천 프롬프트 칩 — 클릭 시 입력창 채움 (목업 규격: 필 999 · 12px) */}
+        <div className="mb-2.5 flex flex-wrap gap-1.5">
+          {PROMPT_CHIPS.map((s) => (
+            <button
+              key={s}
+              type="button"
+              onClick={() => {
+                setInput(s);
+                inputRef.current?.focus();
+              }}
+              disabled={busy}
+              className="rounded-full border border-line px-3 py-1 text-xs text-ink-sub transition hover:border-ink-muted disabled:opacity-40"
+            >
+              {s}
+            </button>
+          ))}
+        </div>
+        <form
+          className="flex items-end gap-2"
+          onSubmit={(e) => {
+            e.preventDefault();
+            void send(input);
+          }}
+        >
         <textarea
+          ref={inputRef}
           value={input}
           onChange={(e) => setInput(e.target.value)}
           onKeyDown={(e) => {
@@ -394,7 +411,8 @@ export function AssistantChat() {
         >
           보내기
         </button>
-      </form>
+        </form>
+      </div>
     </div>
   );
 }
@@ -462,7 +480,62 @@ function ChatItemView({
     );
   }
 
-  // 승인 카드
+  // 승인 카드 — 만료 카운트 훅이 필요해 별도 컴포넌트로 위임
+  // (이 함수는 kind별 조기 return이 있어 훅을 직접 둘 수 없다)
+  return (
+    <ApprovalCardView
+      item={item}
+      busy={busy}
+      onApprove={onApprove}
+      onReject={onReject}
+    />
+  );
+}
+
+/** expiresAt(ISO) 기준 잔여 분 — 올림. 표시 전용이며 만료 판정의 진실은 서버 */
+function remainingMinutes(expiresAt: string): number {
+  return Math.ceil((Date.parse(expiresAt) - Date.now()) / 60_000);
+}
+
+/** B16: 잔여 분을 1분 단위로 갱신. pending이 아니면 타이머를 돌리지 않는다 */
+function useRemainingMinutes(
+  expiresAt: string | undefined,
+  active: boolean,
+): number | null {
+  const [remaining, setRemaining] = useState<number | null>(() =>
+    expiresAt ? remainingMinutes(expiresAt) : null,
+  );
+  useEffect(() => {
+    // 초기값은 useState 지연 초기화가 계산 — 여기서는 1분 주기 갱신만 담당
+    if (!expiresAt || !active) return;
+    const timer = setInterval(
+      () => setRemaining(remainingMinutes(expiresAt)),
+      60_000,
+    );
+    return () => clearInterval(timer);
+  }, [expiresAt, active]);
+  return remaining;
+}
+
+function ApprovalCardView({
+  item,
+  busy,
+  onApprove,
+  onReject,
+}: {
+  item: Extract<ChatItem, { kind: "approval" }>;
+  busy: boolean;
+  onApprove: (item: Extract<ChatItem, { kind: "approval" }>) => void;
+  onReject: (item: Extract<ChatItem, { kind: "approval" }>) => void;
+}) {
+  const remaining = useRemainingMinutes(
+    item.expiresAt,
+    item.status === "pending",
+  );
+  // UI상 만료 — 승인 버튼만 잠근다. 최종 만료 판정은 서버(canDecide)가 한다
+  const uiExpired =
+    item.status === "pending" && remaining !== null && remaining <= 0;
+
   const badge: Record<ApprovalCardStatus, { label: string; cls: string }> = {
     pending: { label: "승인 대기", cls: "bg-amber-100 text-amber-800" },
     executing: { label: "실행 중…", cls: "bg-zinc-100 text-zinc-600" },
@@ -471,6 +544,7 @@ function ChatItemView({
     rejected: { label: "거부됨", cls: "bg-zinc-100 text-zinc-500" },
     expired: { label: "만료됨", cls: "bg-zinc-100 text-zinc-500" },
   };
+  const badgeStatus: ApprovalCardStatus = uiExpired ? "expired" : item.status;
   return (
     <div className="rounded-xl border border-amber-200 bg-amber-50 p-4">
       <div className="flex items-center justify-between gap-2">
@@ -478,9 +552,9 @@ function ChatItemView({
           승인 필요: {item.summary}
         </div>
         <span
-          className={`rounded-full px-2 py-0.5 text-xs font-medium ${badge[item.status].cls}`}
+          className={`rounded-full px-2 py-0.5 text-xs font-medium ${badge[badgeStatus].cls}`}
         >
-          {badge[item.status].label}
+          {badge[badgeStatus].label}
         </span>
       </div>
       <div className="mt-1 text-xs text-zinc-500">
@@ -491,11 +565,11 @@ function ChatItemView({
         {JSON.stringify(item.input, null, 2)}
       </pre>
       {item.status === "pending" && (
-        <div className="mt-3 flex items-center gap-2">
+        <div className="mt-3 flex flex-wrap items-center gap-2">
           <button
             type="button"
             onClick={() => onApprove(item)}
-            disabled={busy}
+            disabled={busy || uiExpired}
             className="rounded-lg bg-zinc-900 px-4 py-2 text-sm font-medium text-white hover:bg-zinc-700 disabled:opacity-40"
           >
             승인하고 실행
@@ -508,6 +582,14 @@ function ChatItemView({
           >
             거부
           </button>
+          {/* B16: 만료 카운트 — 11px amber-700(#b45309), 1분 단위 갱신 */}
+          {remaining !== null && (
+            <span className="text-[11px] text-amber-700">
+              {uiExpired
+                ? "만료됨 — 새로 요청해 주세요"
+                : `만료까지 ${remaining}분 — 만료된 요청은 실행할 수 없습니다`}
+            </span>
+          )}
           {busy && (
             <span className="text-xs text-zinc-400">응답 완료 후 결정할 수 있습니다</span>
           )}
