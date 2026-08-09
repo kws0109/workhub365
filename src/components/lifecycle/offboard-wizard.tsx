@@ -1,8 +1,14 @@
 "use client";
 
+import Link from "next/link";
 import { useState } from "react";
-import type { StepEvent } from "@/lib/lifecycle";
-import { StepList, readPipelineStream, upsertStep } from "./step-list";
+import { Card } from "@/components/ui";
+import {
+  StepList,
+  readPipelineStream,
+  upsertStep,
+  type UiStepEvent,
+} from "./step-list";
 
 type TargetUser = {
   id: string;
@@ -16,7 +22,7 @@ export function OffboardWizard({ users }: { users: TargetUser[] }) {
   const [targetId, setTargetId] = useState("");
   const [confirmed, setConfirmed] = useState(false);
   const [running, setRunning] = useState(false);
-  const [steps, setSteps] = useState<StepEvent[]>([]);
+  const [steps, setSteps] = useState<UiStepEvent[]>([]);
   const [result, setResult] = useState<{
     ok: boolean;
     failedStep?: string | null;
@@ -54,35 +60,42 @@ export function OffboardWizard({ users }: { users: TargetUser[] }) {
   }
 
   return (
-    <div className="rounded-xl border border-zinc-200 bg-white p-6">
-      <h2 className="font-semibold">오프보딩 — 퇴사 처리</h2>
-      <p className="mt-1 text-xs text-zinc-400">
-        로그인 차단 → 세션 철회 → 라이선스 회수 → 그룹 제거를 순서대로 실행합니다.
-      </p>
-
-      <select
-        value={targetId}
-        onChange={(e) => {
-          setTargetId(e.target.value);
-          setConfirmed(false);
-          setSteps([]);
-          setResult(null);
-        }}
-        className="mt-4 w-full rounded-lg border border-zinc-200 px-3 py-2 text-sm"
-      >
-        <option value="">대상 선택…</option>
-        {users.map((u) => (
-          <option key={u.id} value={u.id}>
-            {u.displayName} ({u.userPrincipalName})
-          </option>
-        ))}
-      </select>
+    <Card className="p-5">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="min-w-0">
+          <h2 className="text-[15px] font-semibold">오프보딩 — 퇴사자 정리</h2>
+          <p className="mt-0.5 truncate text-xs text-ink-muted">
+            {target
+              ? `대상: ${target.displayName} · ${target.userPrincipalName}`
+              : "로그인 차단 → 세션 철회 → 라이선스 회수 → 그룹 제거를 순서대로 실행합니다"}
+          </p>
+        </div>
+        <select
+          value={targetId}
+          onChange={(e) => {
+            setTargetId(e.target.value);
+            setConfirmed(false);
+            setSteps([]);
+            setResult(null);
+          }}
+          className="max-w-60 rounded-lg border border-line-strong bg-surface px-3 py-1.5 text-xs font-medium outline-none hover:bg-canvas"
+        >
+          <option value="">대상 선택…</option>
+          {users.map((u) => (
+            <option key={u.id} value={u.id}>
+              {u.displayName} ({u.userPrincipalName})
+            </option>
+          ))}
+        </select>
+      </div>
 
       {target && (
-        <div className="mt-4 rounded-lg border border-red-200 bg-red-50 p-4 text-sm">
+        <div className="mt-4 rounded-lg border border-red-200 bg-red-50 p-4 text-[13px]">
           <p className="font-medium text-red-700">실행 전 확인</p>
           <ul className="mt-2 space-y-0.5 text-red-600">
-            <li>대상: {target.displayName} ({target.userPrincipalName})</li>
+            <li>
+              대상: {target.displayName} ({target.userPrincipalName})
+            </li>
             <li>부서: {target.department ?? "—"}</li>
             <li>회수될 라이선스: {target.licenseCount}개</li>
           </ul>
@@ -97,37 +110,49 @@ export function OffboardWizard({ users }: { users: TargetUser[] }) {
           <button
             onClick={() => run()}
             disabled={!confirmed || running}
-            className="mt-3 rounded-lg bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-500 disabled:opacity-40"
+            className="mt-3 rounded-lg bg-red-600 px-4 py-2 text-[13px] font-medium text-white transition hover:bg-red-700 disabled:opacity-40"
           >
             {running ? "실행 중…" : "오프보딩 실행"}
           </button>
         </div>
       )}
 
-      <StepList steps={steps} />
+      <StepList
+        steps={steps}
+        retryStep={
+          !running && result && !result.ok
+            ? (result.failedStep ?? undefined)
+            : undefined
+        }
+        onRetry={
+          result?.failedStep ? () => run(result.failedStep!) : undefined
+        }
+        retrying={running}
+      />
 
-      {result && !result.ok && (
-        <div className="mt-4 rounded-lg bg-red-50 px-4 py-3 text-sm text-red-700">
-          <p>
-            실패: {result.error ?? `${result.failedStep} 단계에서 중단되었습니다`}
-          </p>
-          {result.failedStep && (
-            <button
-              onClick={() => run(result.failedStep!)}
-              disabled={running}
-              className="mt-2 rounded-lg bg-red-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-red-500"
-            >
-              실패 단계부터 재시도
-            </button>
-          )}
+      {/* 단계 밖 오류(대상 검증·요청 실패 등) — 단계 실패는 행의 재시도 버튼이 담당 */}
+      {result && !result.ok && !result.failedStep && (
+        <div className="mt-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-[13px] text-red-700">
+          실패: {result.error ?? "알 수 없는 오류"}
         </div>
       )}
 
       {result?.ok && (
-        <div className="mt-4 rounded-lg bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-700">
+        <div className="mt-4 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-[13px] font-medium text-emerald-700">
           오프보딩 완료 — 모든 단계가 성공했습니다
         </div>
       )}
-    </div>
+
+      <p className="mt-3 text-xs text-ink-muted">
+        단계별 진행은 스트리밍으로 실시간 표시되며, 전 과정이 감사 로그에
+        기록됩니다 ·{" "}
+        <Link
+          href="/audit"
+          className="text-ink-sub underline underline-offset-2"
+        >
+          감사 로그 보기
+        </Link>
+      </p>
+    </Card>
   );
 }

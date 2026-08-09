@@ -1,11 +1,19 @@
 "use client";
 
 import { useState } from "react";
-import type { StepEvent } from "@/lib/lifecycle";
-import { StepList, readPipelineStream, upsertStep } from "./step-list";
+import { Card } from "@/components/ui";
+import {
+  StepList,
+  readPipelineStream,
+  upsertStep,
+  type UiStepEvent,
+} from "./step-list";
 
 type SkuOption = { skuId: string; label: string; remaining: number };
 type GroupOption = { id: string; displayName: string };
+
+const INPUT_CLS =
+  "w-full rounded-lg border border-line bg-surface px-3 py-2 text-[13px] outline-none placeholder:text-ink-muted focus:border-line-strong";
 
 export function OnboardWizard({
   domain,
@@ -26,7 +34,7 @@ export function OnboardWizard({
   const [groupIds, setGroupIds] = useState<string[]>([]);
 
   const [running, setRunning] = useState(false);
-  const [steps, setSteps] = useState<StepEvent[]>([]);
+  const [steps, setSteps] = useState<UiStepEvent[]>([]);
   const [result, setResult] = useState<{
     ok: boolean;
     failedStep?: string | null;
@@ -90,27 +98,38 @@ export function OnboardWizard({
     }
   }
 
+  const failedStepLabel = result?.failedStep
+    ? (steps.find((s) => s.key === result.failedStep)?.label ??
+      result.failedStep)
+    : null;
+
   return (
-    <div className="rounded-xl border border-zinc-200 bg-white p-6">
-      <h2 className="font-semibold">온보딩 — 신규 입사자</h2>
-      <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
+    <Card className="p-5">
+      <div className="flex flex-wrap items-baseline justify-between gap-3">
+        <h2 className="text-[15px] font-semibold">온보딩 — 새 구성원</h2>
+        <span className="text-xs text-ink-muted">
+          계정 생성 → 라이선스 → 그룹 배정
+        </span>
+      </div>
+
+      <div className="mt-3.5 grid grid-cols-1 gap-3 sm:grid-cols-2">
         <Field label="이름">
           <input
             value={form.displayName}
             onChange={(e) => setForm({ ...form, displayName: e.target.value })}
             placeholder="홍길동"
-            className="w-full rounded-lg border border-zinc-200 px-3 py-2 text-sm"
+            className={INPUT_CLS}
           />
         </Field>
-        <Field label="계정 ID">
-          <div className="flex items-center gap-1">
+        <Field label="이메일 (계정 ID)">
+          <div className="flex items-center gap-1.5">
             <input
               value={form.mailNickname}
               onChange={(e) => setForm({ ...form, mailNickname: e.target.value })}
               placeholder="hong.gd"
-              className="w-full rounded-lg border border-zinc-200 px-3 py-2 text-sm"
+              className={INPUT_CLS}
             />
-            <span className="shrink-0 text-xs text-zinc-400">@{domain}</span>
+            <span className="shrink-0 text-xs text-ink-muted">@{domain}</span>
           </div>
         </Field>
         <Field label="부서">
@@ -118,7 +137,7 @@ export function OnboardWizard({
             value={form.department}
             onChange={(e) => setForm({ ...form, department: e.target.value })}
             placeholder="개발"
-            className="w-full rounded-lg border border-zinc-200 px-3 py-2 text-sm"
+            className={INPUT_CLS}
           />
         </Field>
         <Field label="직급">
@@ -126,13 +145,24 @@ export function OnboardWizard({
             value={form.jobTitle}
             onChange={(e) => setForm({ ...form, jobTitle: e.target.value })}
             placeholder="사원"
-            className="w-full rounded-lg border border-zinc-200 px-3 py-2 text-sm"
+            className={INPUT_CLS}
           />
         </Field>
+        <div className="sm:col-span-2">
+          <p className="mb-1 text-xs font-medium text-ink-secondary">
+            임시 비밀번호
+          </p>
+          <p className="rounded-lg border border-dashed border-line px-3 py-2 text-xs text-ink-muted">
+            생성 후 1회만 표시 — DB·감사 로그에 저장하지 않음
+          </p>
+        </div>
       </div>
 
-      <Field label="라이선스" className="mt-4">
-        <div className="flex flex-wrap gap-2">
+      <div className="mt-3.5">
+        <p className="mb-1.5 text-xs font-medium text-ink-secondary">
+          라이선스 (잔여 좌석)
+        </p>
+        <div className="flex flex-wrap gap-1.5">
           {skuOptions.map((s) => (
             <CheckChip
               key={s.skuId}
@@ -146,17 +176,19 @@ export function OnboardWizard({
                 )
               }
             >
-              {s.label}
-              <span className="ml-1 text-xs opacity-60">잔여 {s.remaining}</span>
+              {s.label} · 잔여 {s.remaining}
             </CheckChip>
           ))}
         </div>
-      </Field>
+      </div>
 
-      <Field label="그룹" className="mt-3">
-        <div className="flex flex-wrap gap-2">
+      <div className="mt-3">
+        <p className="mb-1.5 text-xs font-medium text-ink-secondary">그룹</p>
+        <div className="flex flex-wrap gap-1.5">
           {groupOptions.length === 0 && (
-            <span className="text-xs text-zinc-400">테넌트에 그룹이 없습니다</span>
+            <span className="text-xs text-ink-muted">
+              테넌트에 그룹이 없습니다
+            </span>
           )}
           {groupOptions.map((gr) => (
             <CheckChip
@@ -174,47 +206,50 @@ export function OnboardWizard({
             </CheckChip>
           ))}
         </div>
-      </Field>
+      </div>
 
-      <button
-        onClick={() => run()}
-        disabled={!canSubmit}
-        className="mt-5 rounded-lg bg-zinc-900 px-4 py-2 text-sm font-medium text-white hover:bg-zinc-700 disabled:opacity-40"
-      >
-        {running ? "실행 중…" : "온보딩 실행"}
-      </button>
+      <div className="mt-4 flex justify-end">
+        <button
+          onClick={() => run()}
+          disabled={!canSubmit}
+          className="rounded-lg bg-ink px-4 py-2 text-[13px] font-medium text-white transition hover:bg-ink-body disabled:opacity-40"
+        >
+          {running ? "실행 중…" : "계정 생성 시작"}
+        </button>
+      </div>
 
-      <StepList steps={steps} />
+      <StepList
+        steps={steps}
+        retryStep={
+          !running && result && !result.ok
+            ? (result.failedStep ?? undefined)
+            : undefined
+        }
+        onRetry={
+          result?.failedStep ? () => run(result.failedStep!) : undefined
+        }
+        retrying={running}
+      />
 
       {result && !result.ok && (
-        <div className="mt-4 rounded-lg bg-red-50 px-4 py-3 text-sm text-red-700">
+        <div className="mt-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-[13px] text-red-700">
           <p>
-            실패: {result.error ?? `${result.failedStep} 단계에서 중단되었습니다`}
+            실패:{" "}
+            {result.error ?? `${failedStepLabel} 단계에서 중단되었습니다`}
           </p>
-          <div className="mt-2 flex gap-2">
-            {result.failedStep && (
-              <button
-                onClick={() => run(result.failedStep!)}
-                disabled={running}
-                className="rounded-lg bg-red-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-red-500"
-              >
-                실패 단계부터 재시도
-              </button>
-            )}
-            <button
-              onClick={resetWizard}
-              disabled={running}
-              className="rounded-lg border border-red-300 px-3 py-1.5 text-xs font-medium text-red-600 hover:bg-red-100"
-            >
-              처음부터 새로 시작
-            </button>
-          </div>
+          <button
+            onClick={resetWizard}
+            disabled={running}
+            className="mt-2 rounded-lg border border-red-300 px-3 py-1.5 text-xs font-medium text-red-600 transition hover:bg-red-100 disabled:opacity-40"
+          >
+            처음부터 새로 시작
+          </button>
         </div>
       )}
 
       {/* 계정이 생성됐다면 성공 여부와 무관하게 비밀번호를 보여준다 — 유실 방지 */}
       {result?.tempPassword && (
-        <div className="mt-4 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm">
+        <div className="mt-4 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-[13px]">
           <p className="font-medium text-emerald-700">
             {result.ok ? "온보딩 완료" : "계정은 생성됨"} — {result.upn}
           </p>
@@ -228,7 +263,7 @@ export function OnboardWizard({
                 navigator.clipboard.writeText(result.tempPassword!);
                 setCopied(true);
               }}
-              className="ml-2 rounded bg-emerald-600 px-2 py-0.5 text-xs font-medium text-white hover:bg-emerald-500"
+              className="ml-2 rounded bg-emerald-600 px-2 py-0.5 text-xs font-medium text-white transition hover:bg-emerald-700"
             >
               {copied ? "복사됨" : "복사"}
             </button>
@@ -238,7 +273,7 @@ export function OnboardWizard({
           </p>
         </div>
       )}
-    </div>
+    </Card>
   );
 }
 
@@ -253,12 +288,15 @@ function Field({
 }) {
   return (
     <label className={`block ${className}`}>
-      <span className="mb-1 block text-xs font-medium text-zinc-500">{label}</span>
+      <span className="mb-1 block text-xs font-medium text-ink-secondary">
+        {label}
+      </span>
       {children}
     </label>
   );
 }
 
+/** 선택 칩 — 목업 규격: 필 999, 선택 시 ink 반전, 미선택 hover 보더 강조 */
 function CheckChip({
   checked,
   disabled,
@@ -275,10 +313,10 @@ function CheckChip({
       type="button"
       disabled={disabled}
       onClick={onToggle}
-      className={`rounded-full border px-3 py-1 text-sm transition ${
+      className={`rounded-full border px-3 py-[5px] text-xs font-medium transition ${
         checked
-          ? "border-zinc-900 bg-zinc-900 text-white"
-          : "border-zinc-200 bg-white text-zinc-600 hover:border-zinc-400"
+          ? "border-ink bg-ink text-white"
+          : "border-line bg-surface text-ink-sub hover:border-ink-muted"
       } disabled:opacity-40`}
     >
       {children}
