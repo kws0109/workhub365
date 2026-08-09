@@ -24,6 +24,9 @@ async function fetchToken(): Promise<string> {
     `https://login.microsoftonline.com/${tenantId}/oauth2/v2.0/token`,
     {
       method: "POST",
+      // 토큰 엔드포인트도 응답 없는 소켓에 매달리면 이후 모든 app-only 호출이
+      // single-flight 뒤에서 함께 멈춘다 — Graph 호출과 동일한 상한 적용
+      signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
       headers: { "Content-Type": "application/x-www-form-urlencoded" },
       body: new URLSearchParams({
         client_id: clientId,
@@ -32,7 +35,7 @@ async function fetchToken(): Promise<string> {
         grant_type: "client_credentials",
       }),
     },
-  );
+  ).catch(toGraphTimeout);
 
   if (!res.ok) {
     const body = (await res.json().catch(() => ({}))) as {
@@ -84,6 +87,20 @@ const MAX_THROTTLE_RETRIES = 3;
 // 서버리스 함수 실행 한도를 넘겨 플랫폼에 강제 종료당하느니, 즉시 실패시켜
 // 호출자가 강등 경로(예: "마지막 로그인 알 수 없음")로 빠지게 한다
 const MAX_RETRY_AFTER_SECONDS = 10;
+// 응답 없는 업스트림 방어 — undici 기본(약 300초)에 매달리면 페이지 렌더가
+// 분 단위로 멈춘다(/places에서 실측). 시도당 15초 넘으면 끊고 강등 경로로
+export const REQUEST_TIMEOUT_MS = 15_000;
+
+/** fetch 타임아웃/중단을 GraphError(504)로 변환 */
+export function toGraphTimeout(e: unknown): never {
+  if (
+    e instanceof DOMException &&
+    (e.name === "TimeoutError" || e.name === "AbortError")
+  ) {
+    throw new GraphError(504, "timeout", "Graph API 응답 없음 — 15초 초과로 중단");
+  }
+  throw e;
+}
 
 /**
  * Graph API 호출. path는 "/users" 같은 v1.0 상대 경로.
@@ -105,13 +122,14 @@ export async function graphFetch<T>(
     const token = await getAppToken();
     const res = await fetch(url, {
       ...init,
+      signal: init?.signal ?? AbortSignal.timeout(REQUEST_TIMEOUT_MS),
       headers: {
         Authorization: `Bearer ${token}`,
         "Content-Type": "application/json",
         ConsistencyLevel: "eventual",
         ...init?.headers,
       },
-    });
+    }).catch(toGraphTimeout);
 
     if (res.status === 429 || res.status === 503) {
       await res.body?.cancel(); // 버려지는 응답의 커넥션 반환
