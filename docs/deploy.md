@@ -2,6 +2,9 @@
 
 로컬 셋업([setup-guide.md](setup-guide.md))이 끝났다는 전제로, Vercel에 배포하는 절차다.
 
+> 현재 프로덕션: **https://workhub365-five.vercel.app** (2026-08-09 배포·검증 완료)
+> 주의: `workhub365.vercel.app`(-five 없음)은 **타인의 무관한 프로젝트**가 선점한 도메인이다 — 우리 앱이 아니다.
+
 ## 1. 프로젝트 임포트
 
 1. [vercel.com/new](https://vercel.com/new)에서 `kws0109/workhub365` 리포를 Import — 프레임워크(Next.js)는 자동 감지되므로 빌드 설정은 기본값 그대로 둔다
@@ -46,7 +49,10 @@ localhost URI는 그대로 두면 로컬 개발과 병행 가능하다.
 4. AI 어시스턴트 — 조회 1건 + 승인 카드 흐름(세션 철회가 무해해서 적합)
 5. 감사 로그 화면에 위 액션들이 기록됐는지
 
-## 주의
+## 주의 (실제로 겪은 함정 포함)
 
+- **`AUTH_URL`을 `.env.example` 기본값(`http://localhost:3000`) 그대로 복사하지 말 것** — 로그인 후 리디렉션이 localhost로 돌아가 화면이 멈춘다 (첫 배포에서 실제 발생). 반드시 배포 도메인으로
+- **환경변수를 바꾸면 Redeploy해야 반영된다** (Deployments → ⋯ → Redeploy)
+- `.vercel.app` 기본 서브도메인은 선점될 수 있다 — 프로젝트명과 무관하게 Settings → Domains에서 실제 할당된 도메인을 확인할 것
 - 시크릿을 커밋하지 않는다 — 환경변수는 Vercel 대시보드에서만 관리
 - E3 평가판 테넌트는 30일 만료 — 만료 후에는 Graph 조회가 실패하며 화면은 오류 카드로 강등된다

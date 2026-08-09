@@ -114,4 +114,10 @@ AI 페어 프로그래밍으로 구현한 작업마다 **[근거 스펙 + 실행
 - **실행 프롬프트 (원문)**: "Phase 6 진행"
 - **구현 요지**: ① GitHub Actions CI(lint+Vitest+build) — `.env.local` 제거 빌드로 시크릿 불필요를 사전 검증 후 작성, 첫 실행 전 단계 통과 ② README 전면 보강 — CI 배지, mermaid 다이어그램 2종(시스템 구성·승인 게이트 시퀀스), 주요 의사결정 표(이유 포함), 기능 표 현행화 ③ Wiki 4페이지 현행화(Roadmap 상태, Architecture mermaid·설계 결정 6종) ④ docs/deploy.md — Vercel 임포트·환경변수·리디렉션 URI·체크리스트 ⑤ docs/demo-script.md — 장면 7개(보여줄 것/말할 것)
 - **범위 판단**: Vercel 배포 실행과 데모 영상 녹화는 사용자 계정·화면 녹화가 필요해 준비물(가이드·대본)까지만 — 나머지는 사용자 액션으로 handoff에 명시
-- **결과 커밋**: `ea88035` CI+README+deploy+demo-script, 이후 docs 마감 커밋. Wiki `ecc0412`
+- **결과 커밋**: `ea88035` CI+README+deploy+demo-script, `cdb6871` docs 마감. Wiki `ecc0412`
+
+## 2026-08-09 — Vercel 프로덕션 배포 검증
+
+- **실행 프롬프트 (원문)**: "배포 완료했어, 배포 URL로 검증 이어서 진행해줘" → AUTH_URL 수정 안내 후 → "재배포 후 로그인 완료"
+- **진행**: 배포 URL을 GitHub deployments API로 역추적 → `workhub365.vercel.app`이 타 프로젝트 선점임을 발견(우리 앱 아님) → 사용자 제공 도메인 `workhub365-five.vercel.app`으로 검증. 첫 로그인이 localhost로 리디렉션되는 문제 발견 — 원인은 Vercel 환경변수 `AUTH_URL`이 `.env.example` 기본값 그대로였던 것. 수정+Redeploy 후 전 항목 통과: SSO 로그인, 홈 위젯(위임 Graph 메일 2통 실값), 라이선스 대시보드(₩1,320,000 실집계), 어시스턴트 승인 게이트(find_users→세션 철회 승인→`revoked:true`), 감사 로그 3건
+- **결과 커밋**: 배포 URL·함정을 README/deploy.md/handoff에 기록한 마감 커밋

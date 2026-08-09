@@ -115,6 +115,7 @@ sequenceDiagram
 
 ## 데모
 
+- **라이브**: https://workhub365-five.vercel.app — 데모 테넌트(`workhub0109.onmicrosoft.com`) 구성원만 로그인 가능합니다 (Entra SSO 전용, 외부 계정은 fail-closed로 거부)
 - **시나리오 대본**: [docs/demo-script.md](docs/demo-script.md) — 라이선스 낭비 발견 → 어시스턴트로 회수(승인 게이트) → 오프보딩 → 휴가/기안 결재 흐름
 - **영상**: (준비 중 — E3 평가판 테넌트 기준 녹화 예정)
 - 실제 M365 테넌트(E3 25석)에 연결해 개발·검증했습니다. mock 데이터가 아닙니다
