@@ -8,13 +8,13 @@ Microsoft 365를 쓰는 조직을 위한 올인원 도구입니다. 직원은 M3
 
 > 이 프로젝트는 AI 코딩 에이전트(Claude Code) 주도의 spec-driven development로 개발되며, **개발 과정 전체(스펙, 커밋, 의사결정, 실패와 개선)를 이 리포와 [Wiki](../../wiki)에 투명하게 기록**하는 것 자체가 목표의 일부입니다. 모든 작업의 실행 프롬프트는 [docs/prompt-log.md](docs/prompt-log.md)에 남깁니다.
 
-**개발 기간과 내 역할** — 2026-08-07~09, 커밋 79개, 8개 모듈 14화면. 코드 생성은 에이전트가 했고, 제품·스펙 결정, 다관점 병렬 리뷰 하네스 설계, 실브라우저 E2E 검증, 커밋 단위 통제는 제 몫이었습니다. 에이전트 산출물을 그대로 받지 않았다는 근거:
+**개발 기간과 내 역할** — 2026-08-07~09, 커밋 85개, 8개 모듈 22화면. 코드 생성은 에이전트가 했고, 제품·스펙 결정, 리뷰 범위 설계와 채택 판단, 실브라우저 E2E 검증, 커밋 단위 통제는 제 몫이었습니다. 에이전트 산출물을 그대로 받지 않았다는 근거:
 
-- [`51e7671`](../../commit/51e7671) — 리뷰 19건 지적을 반박 검증한 뒤 고유 결함 13건만 채택
+- [`51e7671`](../../commit/51e7671) — 리뷰 19건 지적을 건별로 반박 검증하고, 렌즈 간 중복을 묶어 고유 결함 13건으로 반영
 - [`60a84a2`](../../commit/60a84a2) — 세 설계안이 모두 "문제없다"고 한 지점에서 페이지가 5~7분 멈추는 것을 실측으로 잡아 타임아웃 도입
 - [`de4ea33`](../../commit/de4ea33) — 설계 경합·심사에서 드러난 우회 경로 4종을 규칙으로 봉쇄(2단계 결재 우회, 근무시간 폭주, 시드 롤백, DB 제약 소실)
 
-무엇을 반려했고 왜 반려했는지가 [docs/prompt-log.md](docs/prompt-log.md)와 [docs/handoff.md](docs/handoff.md)에 남아 있습니다.
+어떤 지시로 만들었는지는 [docs/prompt-log.md](docs/prompt-log.md)에, 무엇을 지적받고 무엇을 채택·보류했는지는 [docs/review-log.md](docs/review-log.md)에 남아 있습니다.
 
 ## 왜 만들었나
 
@@ -167,7 +167,8 @@ npm run mcp:stdio  # MCP 서버 독립 실행 (Claude Desktop 등에서 사용)
 ## 개발 방식
 
 - **스펙이 진실의 원천**: [requirements](docs/specs/requirements.md) · [design](docs/specs/design.md) · [tasks](docs/specs/tasks.md) — 스펙과 다르게 구현해야 하면 스펙을 먼저 고칩니다
-- **모든 작업의 실행 프롬프트를 기록**: [docs/prompt-log.md](docs/prompt-log.md) — 어떤 지시로 무엇이 구현됐는지 재현 가능
+- **모든 작업의 실행 프롬프트를 기록**: [docs/prompt-log.md](docs/prompt-log.md) — 어떤 지시로 무엇이 구현됐는지, 그리고 왜 그렇게 물었는지
+- **리뷰 지적과 채택 근거를 기록**: [docs/review-log.md](docs/review-log.md) — 리뷰 10회 216건의 원문과 채택·보류 판단. 1인 리포라 PR 리뷰 스레드가 없어 이 문서가 그 자리를 대신합니다
 - **구현 → 단위 테스트 → 실테넌트 E2E → 다관점 병렬 리뷰 → 결함 수정 → 커밋**의 사이클. 리뷰에서 잡힌 결함(nOAuth, TOCTOU, 토큰 노출 경로 등)은 [Wiki Development-Log](../../wiki/Development-Log)에 기록
 - CI: lint + 테스트 + 빌드 ([.github/workflows/ci.yml](.github/workflows/ci.yml))
 

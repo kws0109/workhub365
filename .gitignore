@@ -37,6 +37,9 @@ yarn-error.log*
 # 로컬 전용 시크릿/데모 자격 증명
 *.local.json
 
+# 로컬 전용 개인 메모
+*.local.md
+
 # vercel
 .vercel
 
